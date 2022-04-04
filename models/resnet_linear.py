@@ -33,12 +33,51 @@ class LinearClassifier(nn.Module):
     def forward(self, features):
         return self.fc(features)
 
-
+from prop_model import R3D_MLP
 class Fusion_R3D(nn.Module):
-    def __init__(self, feature_dim, model_depth, opt, num_classes=18):
-        super(LinearClassifier, self).__init__()
-        pass
-    
+    def __init__(self, 
+                dash:R3D_MLP,
+                rear:R3D_MLP,
+                right:R3D_MLP, 
+                feature=2048,
+                n_classes=18,
+                with_classifier:bool=False):
+        super(Fusion_R3D, self).__init__()
+        self.dash_model=dash
+        self.rr_model=rear
+        self.rt_model=right
+        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 2048))
+        if with_classifier:
+            self.classifier = nn.Linear(feature, n_classes)
+            
     def forward(self, x):
-        pass
+        #nm = normal, an = anormal
+        _, d_an = self.dash_model(x)
+        _, rr_an = self.rr_model(x)
+        #Projection(vector) positive, anomaly=negative
+        _, rt_an = self.rt_model(x)
         
+        x = torch.cat([d_an, rr_an, rt_an], axis=1)
+        
+        x = x.unsqueeze(dim=1)
+        x = self.avgpool(x)
+        x = x.squeeze(dim=1)
+        
+        if hasattr(self, 'classifier'):
+            
+            x = self.classifier(x)
+        
+        return x
+
+if __name__ == '__main__':
+    # model = Fusion_R3D(dash=,
+    #            rear='../checkpoints/best_model_resnet_Dashboard.pth',
+    #            right='../checkpoints/best_model_resnet_Dashboard.pth',
+    #            with_classifier=False)
+    # print(model)
+    # path = '../checkpoints/best_model_resnet_Dashboard.pth'
+    
+    from opts import parse_opts
+    
+    
+    #model = generate_model(opt, removed_classifier=True)

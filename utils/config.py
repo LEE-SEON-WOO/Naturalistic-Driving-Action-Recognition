@@ -10,7 +10,7 @@ def parse_args():
     parser.add_argument('--sample_duration', default=16, type=int, help='Temporal duration of each video clip')
     parser.add_argument('--sample_size', default=112, type=int, help='Height and width of inputs')
     parser.add_argument('--model_type', default='resnet', type=str, help='so far only resnet')
-    parser.add_argument('--model_depth', default=18, type=int, help='Depth of resnet (18 | 50 | 101)')
+    parser.add_argument('--model_depth', default=50, type=int, help='Depth of resnet (18 | 50 | 101)')
     parser.add_argument('--shortcut_type', default='B', type=str, help='Shortcut type of resnet (A | B)')
     parser.add_argument('--pre_train_model', default=True, type=ast.literal_eval, help='Whether use pre-trained model')
     parser.add_argument('--use_cuda', default=True, type=ast.literal_eval, help='If true, cuda is used.')

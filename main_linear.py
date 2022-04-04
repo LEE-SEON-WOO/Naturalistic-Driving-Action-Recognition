@@ -34,7 +34,8 @@ def parse_option():
                         help='num of workers to use')
     parser.add_argument('--epochs', type=int, default=100,
                         help='number of training epochs')
-
+    parser.add_argument('--model_name', type=str, default='resnet',
+                        help='number of training epochs')
     # optimization
     parser.add_argument('--learning_rate', type=float, default=0.1,
                         help='learning rate')
@@ -259,4 +260,23 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    #main()
+    
+    #opt = parse_option()
+    from models.prop_model import R3D_MLP, parse_opts
+    opt = parse_opts()
+    model = R3D_MLP(feature_dim=128, model_depth=50, opt=opt).cuda()
+    
+    #inp = torch.rand(8, 3, 16, 112, 112).cuda()
+    
+    inp = torch.rand([1, 1, 16, 112, 112]).cuda()
+    
+    x = model(inp)
+    
+    #128, 2048 (vec, classification)
+    
+    from models.resnet_linear import Fusion_R3D
+    fusion = Fusion_R3D(dash=model, rear=model, right=model, with_classifier=True).cuda()
+    x3 = fusion(inp)
+    print(x3.shape)
+    

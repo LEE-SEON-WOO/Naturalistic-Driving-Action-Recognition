@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from models import backbone
+#from models import backbone
 """
 *r2p1d50_K_200ep.pth --model resnet --model_depth 50 --n_pretrain_classes 700 -> 93.4 (1st)
 *r3d50_KM_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 1039 -> 92.9 (2nd)
@@ -34,7 +34,7 @@ class R3D_MLP(nn.Module):
 
 def generate_model(opt):
     
-    model = build_backbone(**vars(opt))
+    model = build_backbone(opt=opt)
     
     model = load_pretrained_model(model, 
                                 pretrain_path=opt.pretrain_path, 
@@ -102,63 +102,53 @@ def get_fine_tuning_parameters(model, ft_begin_module):
 
     return parameters
 
-def build_backbone(model_name:str='resnet',
-                   model_depth:int=18,
-                   n_classes:int=18,
-                   n_input_channels:int=1,
-                   resnet_shortcut:str='B',
-                   conv1_t_size:int=7,
-                   conv1_t_stride:int=1,
-                   no_max_pool:bool=True,
-                   resnet_widen_factor:float=1.0,
-                   resnext_cardinality:int=32,
-                   wide_resnet_k:int=2,
-                   **kwargs):
+def build_backbone(opt):
+    
     from backbone import resnet, resnet2p1d, wide_resnet, resnext, densenet
-    if str(model_name) == 'resnet':
-        model = resnet.generate_model(model_depth=model_depth,
-                                    n_classes=n_classes,
-                                    n_input_channels=n_input_channels,
-                                    shortcut_type=resnet_shortcut,
-                                    conv1_t_size=conv1_t_size,
-                                    conv1_t_stride=conv1_t_stride,
-                                    no_max_pool=no_max_pool,
-                                    widen_factor=resnet_widen_factor)
+    if str(opt.model_name) == 'resnet':
+        model = resnet.generate_model(model_depth=opt.model_depth,
+                                    n_classes=opt.n_classes,
+                                    n_input_channels=opt.n_input_channels,
+                                    shortcut_type=opt.resnet_shortcut,
+                                    conv1_t_size=opt.conv1_t_size,
+                                    conv1_t_stride=opt.conv1_t_stride,
+                                    no_max_pool=opt.no_max_pool,
+                                    widen_factor=opt.resnet_widen_factor)
                                     
-    elif str(model_name) == 'resnet2p1d':
-        model = resnet2p1d.generate_model(model_depth=model_depth,
-                                        n_classes=n_classes,
-                                        n_input_channels=n_input_channels,
-                                        shortcut_type=resnet_shortcut,
-                                        conv1_t_size=conv1_t_size,
-                                        conv1_t_stride=conv1_t_stride,
-                                        no_max_pool=no_max_pool,
-                                        widen_factor=resnet_widen_factor)
-    elif str(model_name) == 'wideresnet':
-        model = wide_resnet.generate_model(model_depth=model_depth,
-                                        k=wide_resnet_k,
-                                        n_classes=n_classes,
-                                        n_input_channels=n_input_channels,
-                                        shortcut_type=resnet_shortcut,
-                                        conv1_t_size=conv1_t_size,
-                                        conv1_t_stride=conv1_t_stride,
-                                        no_max_pool=no_max_pool)
-    elif str(model_name) == 'resnext':
-        model = resnext.generate_model(model_depth=model_depth,
-                                    cardinality=resnext_cardinality,
-                                    n_classes=n_classes,
-                                    n_input_channels=n_input_channels,
-                                    shortcut_type=resnet_shortcut,
-                                    conv1_t_size=conv1_t_size,
-                                    conv1_t_stride=conv1_t_stride,
-                                    no_max_pool=no_max_pool)
-    elif str(model_name) == 'densenet':
-        model = densenet.generate_model(model_depth=model_depth,
-                                        n_classes=n_classes,
-                                        n_input_channels=n_input_channels,
-                                        conv1_t_size=conv1_t_size,
-                                        conv1_t_stride=conv1_t_stride,
-                                        no_max_pool=no_max_pool)
+    elif str(opt.model_name) == 'resnet2p1d':
+        model = resnet2p1d.generate_model(model_depth=opt.model_depth,
+                                        n_classes=opt.n_classes,
+                                        n_input_channels=opt.n_input_channels,
+                                        shortcut_type=opt.resnet_shortcut,
+                                        conv1_t_size=opt.conv1_t_size,
+                                        conv1_t_stride=opt.conv1_t_stride,
+                                        no_max_pool=opt.no_max_pool,
+                                        widen_factor=opt.resnet_widen_factor)
+    elif str(opt.model_name) == 'wideresnet':
+        model = wide_resnet.generate_model(model_depth=opt.model_depth,
+                                        k=opt.wide_resnet_k,
+                                        n_classes=opt.n_classes,
+                                        n_input_channels=opt.n_input_channels,
+                                        shortcut_type=opt.resnet_shortcut,
+                                        conv1_t_size=opt.conv1_t_size,
+                                        conv1_t_stride=opt.conv1_t_stride,
+                                        no_max_pool=opt.no_max_pool)
+    elif str(opt.model_name) == 'resnext':
+        model = resnext.generate_model(model_depth=opt.model_depth,
+                                    cardinality=opt.resnext_cardinality,
+                                    n_classes=opt.n_classes,
+                                    n_input_channels=opt.n_input_channels,
+                                    shortcut_type=opt.resnet_shortcut,
+                                    conv1_t_size=opt.conv1_t_size,
+                                    conv1_t_stride=opt.conv1_t_stride,
+                                    no_max_pool=opt.no_max_pool)
+    elif str(opt.model_name) == 'densenet':
+        model = densenet.generate_model(model_depth=opt.model_depth,
+                                        n_classes=opt.n_classes,
+                                        n_input_channels=opt.n_input_channels,
+                                        conv1_t_size=opt.conv1_t_size,
+                                        conv1_t_stride=opt.conv1_t_stride,
+                                        no_max_pool=opt.no_max_pool)
     
     return model
 
@@ -193,6 +183,7 @@ def make_data_parallel(model, is_distributed, device):
 def _construct_depth_model(base_model):
     # modify the first convolution kernels for Depth input
     modules = list(base_model.modules())
+    
     first_conv_idx = list(filter(lambda x: isinstance(modules[x], nn.Conv3d),
                                  list(range(len(modules)))))[0]
     conv_layer = modules[first_conv_idx]
@@ -208,22 +199,23 @@ def _construct_depth_model(base_model):
     new_conv.weight.data = new_kernels
     if len(params) == 2:
         new_conv.bias.data = params[1].data # add bias if neccessary
+    
     layer_name = list(container.state_dict().keys())[0][:-7] # remove .weight suffix to get the layer name
     # replace the first convlution layer
     setattr(container, layer_name, new_conv)
     return base_model
 
-"""
+
 import argparse
 from pathlib import Path
 
 
-def parse_opts(pretrain_path:str='../pretrained/r3d50_KMS_200ep.pth', 
+def parse_opts(pretrain_path:str='./checkpoints/best_model_resnet_Dashboard.pth', 
                 model:str='resnet',
-                n_input_channels:int=3,
+                n_input_channels:int=1,
                 model_depth:int=50,
                 manual_seed:int=1,
-                output_topk:int=5,
+                output_topk:int=1,
                 input_type:str='rgb',
                 n_classes:int=1139,
                 n_pretrain_classes:int=1139,
@@ -330,7 +322,7 @@ def parse_opts(pretrain_path:str='../pretrained/r3d50_KMS_200ep.pth',
     args = parser.parse_args()
 
     return args
-"""
+
 
 
 
