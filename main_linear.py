@@ -106,7 +106,7 @@ def set_model(opt):
     
     #model = torch.cat((dash_model, rear_model, right_model), dim=1)
     
-    state_dict = ckpt['model']
+    state_dict = ckpt['model'] #! 선우수정예정!
 
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
