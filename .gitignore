@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+pretrained/
+normvec/
+logs/
+data/__pycache__
+checkpoints/
