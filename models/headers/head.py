@@ -8,16 +8,25 @@ Projection
 
 """
 class ProjectionHead(nn.Module):
-    def __init__(self, output_dim, model_depth):
+    def __init__(self, 
+                output_dim, 
+                model_depth,
+                head='mlp'):
         super(ProjectionHead, self).__init__()
-        if model_depth == 18:
-            self.hidden = nn.Linear(512, 256)
-        elif model_depth == 50:
-            self.hidden = nn.Linear(2048, 256)
-        elif model_depth == 101:
-            self.hidden = nn.Linear(2048, 256)
-        self.relu = nn.ReLU(inplace=True)
-        self.out = nn.Linear(256, output_dim)
+        self.head = head
+        depth = {18:(512, 256), 50:(2048, 256), 101:(2048, 256)}
+        if head=='linear':
+            self.hidden = nn.Linear(*depth[model_depth])
+        elif head=='mlp':
+            dim_in = depth[model_depth][0]
+            self.hidden = nn.Sequential(
+                nn.Linear(dim_in, dim_in),
+                nn.ReLU(inplace=True),
+                nn.Linear(dim_in, output_dim)
+            )
+        else:
+            raise NotImplementedError(
+                'head not supported: {}'.format(head))
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 m.weight = nn.init.kaiming_normal_(m.weight, mode='fan_out')
@@ -25,10 +34,5 @@ class ProjectionHead(nn.Module):
 
     def forward(self, x):
         x = self.hidden(x)
-        x = self.relu(x)
-        x = self.out(x)
         x = F.normalize(x, p=2, dim=1)
-
         return x
-
-
