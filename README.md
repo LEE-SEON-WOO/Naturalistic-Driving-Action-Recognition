@@ -33,8 +33,36 @@ python main_classifier.py --ckpt /checkpoints/model.pth
 ```
 
 ### Pretrained weights
- 
-R3D-18 with UCF101 pretraining: [Google Drive](https://drive.google.com/file/d/1Y-YmohPPeZKmd8MO_KVYKDNoIbzpjQWV/view?usp=sharing)<br/>R3D-18 with Kinetics400 pretraining: [Google Drive](https://drive.google.com/file/d/1m-u8N18dYFqP9B2JF3dEYOowKg3xDrds/view?usp=sharing)<br/>R2+1D-18 with Kinetics400 pretraining: [Google Drive](https://drive.google.com/file/d/1cuM4vFJA8wDDYmkQeAhwBUDQD0aDGmqD/view?usp=sharing)
+```bibtex
+@inproceedings{hara3dcnns,
+  author={Kensho Hara and Hirokatsu Kataoka and Yutaka Satoh},
+  title={Can Spatiotemporal 3D CNNs Retrace the History of 2D CNNs and ImageNet?},
+  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages={6546--6555},
+  year={2018},
+}
+```
+Pre-trained models are available [here](https://drive.google.com/open?id=1xbYbZ7rpyjftI_KCk6YuL-XrfQDz7Yd4).
+All models are trained on Kinetics-700 (_K_), Moments in Time (_M_), STAIR-Actions (_S_), or merged datasets of them (_KM_, _KS_, _MS_, _KMS_).  
+```misc
+r3d18_K_200ep.pth: --model resnet --model_depth 18 --n_pretrain_classes 700
+r3d18_KM_200ep.pth: --model resnet --model_depth 18 --n_pretrain_classes 1039
+r3d34_K_200ep.pth: --model resnet --model_depth 34 --n_pretrain_classes 700
+r3d34_KM_200ep.pth: --model resnet --model_depth 34 --n_pretrain_classes 1039
+r3d50_K_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 700
+r3d50_KM_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 1039
+r3d50_KMS_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 1139
+r3d50_KS_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 800
+r3d50_M_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 339
+r3d50_MS_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 439
+r3d50_S_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 100
+r3d101_K_200ep.pth: --model resnet --model_depth 101 --n_pretrain_classes 700
+r3d101_KM_200ep.pth: --model resnet --model_depth 101 --n_pretrain_classes 1039
+r3d152_K_200ep.pth: --model resnet --model_depth 152 --n_pretrain_classes 700
+r3d152_KM_200ep.pth: --model resnet --model_depth 152 --n_pretrain_classes 1039
+r3d200_K_200ep.pth: --model resnet --model_depth 200 --n_pretrain_classes 700
+r3d200_KM_200ep.pth: --model resnet --model_depth 200 --n_pretrain_classes 1039
+```
 
 ## Reference
 Please cite the following article if you use this code or pre-trained models:
