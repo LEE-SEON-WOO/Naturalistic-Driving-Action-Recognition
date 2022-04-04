@@ -6,8 +6,8 @@ import sys
 import torch
 import torch.distributed as dist
 
-from utils.util import AverageMeter
-from utils import calculate_accuracy
+from utils.utils import AverageMeter
+from utils.utils import calculate_accuracy
 
 def train_epoch(epoch,
                 data_loader,

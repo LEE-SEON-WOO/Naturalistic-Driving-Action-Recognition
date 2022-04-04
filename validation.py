@@ -5,7 +5,7 @@ import sys
 import torch
 import torch.distributed as dist
 
-from utils import AverageMeter, calculate_accuracy
+from utils.utils import AverageMeter, calculate_accuracy
 
 
 def val_epoch(epoch,

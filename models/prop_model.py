@@ -33,15 +33,17 @@ class R3D_MLP(nn.Module):
         return self.proj_head(unnormed_x), normed_x
 
 def generate_model(opt):
-    model = build_backbone(opt)
+    
+    model = build_backbone(**vars(opt))
     
     model = load_pretrained_model(model, 
                                 pretrain_path=opt.pretrain_path, 
                                 model_name=opt.model_name)
     
-    if torch.cuda.is_available():
-        model = model.cuda()
+    # if torch.cuda.is_available():
+    #     model = model.cuda()
     return model
+
 from collections import OrderedDict
 def load_pretrained_model(model, pretrain_path, model_name):
     if str(pretrain_path).endswith('pth'):
@@ -100,53 +102,64 @@ def get_fine_tuning_parameters(model, ft_begin_module):
 
     return parameters
 
-def build_backbone(opt):
+def build_backbone(model_name:str='resnet',
+                   model_depth:int=18,
+                   n_classes:int=18,
+                   n_input_channels:int=1,
+                   resnet_shortcut:str='B',
+                   conv1_t_size:int=7,
+                   conv1_t_stride:int=1,
+                   no_max_pool:bool=True,
+                   resnet_widen_factor:float=1.0,
+                   resnext_cardinality:int=32,
+                   wide_resnet_k:int=2,
+                   **kwargs):
     from backbone import resnet, resnet2p1d, wide_resnet, resnext, densenet
-    if str(opt.model_name) == 'resnet':
-        model = resnet.generate_model(model_depth=opt.model_depth,
-                                    n_classes=opt.n_classes,
-                                    n_input_channels=opt.n_input_channels,
-                                    shortcut_type=opt.resnet_shortcut,
-                                    conv1_t_size=opt.conv1_t_size,
-                                    conv1_t_stride=opt.conv1_t_stride,
-                                    no_max_pool=opt.no_max_pool,
-                                    widen_factor=opt.resnet_widen_factor)
+    if str(model_name) == 'resnet':
+        model = resnet.generate_model(model_depth=model_depth,
+                                    n_classes=n_classes,
+                                    n_input_channels=n_input_channels,
+                                    shortcut_type=resnet_shortcut,
+                                    conv1_t_size=conv1_t_size,
+                                    conv1_t_stride=conv1_t_stride,
+                                    no_max_pool=no_max_pool,
+                                    widen_factor=resnet_widen_factor)
                                     
-    elif str(opt.model_name) == 'resnet2p1d':
-        model = resnet2p1d.generate_model(model_depth=opt.model_depth,
-                                        n_classes=opt.n_classes,
-                                        n_input_channels=opt.n_input_channels,
-                                        shortcut_type=opt.resnet_shortcut,
-                                        conv1_t_size=opt.conv1_t_size,
-                                        conv1_t_stride=opt.conv1_t_stride,
-                                        no_max_pool=opt.no_max_pool,
-                                        widen_factor=opt.resnet_widen_factor)
-    elif str(opt.model_name) == 'wideresnet':
-        model = wide_resnet.generate_model(model_depth=opt.model_depth,
-                                        k=opt.wide_resnet_k,
-                                        n_classes=opt.n_classes,
-                                        n_input_channels=opt.n_input_channels,
-                                        shortcut_type=opt.resnet_shortcut,
-                                        conv1_t_size=opt.conv1_t_size,
-                                        conv1_t_stride=opt.conv1_t_stride,
-                                        no_max_pool=opt.no_max_pool)
-    elif str(opt.model_name) == 'resnext':
-        model = resnext.generate_model(model_depth=opt.model_depth,
-                                    cardinality=opt.resnext_cardinality,
-                                    n_classes=opt.n_classes,
-                                    n_input_channels=opt.n_input_channels,
-                                    shortcut_type=opt.resnet_shortcut,
-                                    conv1_t_size=opt.conv1_t_size,
-                                    conv1_t_stride=opt.conv1_t_stride,
-                                    no_max_pool=opt.no_max_pool)
-    elif str(opt.model_name) == 'densenet':
-        model = densenet.generate_model(model_depth=opt.model_depth,
-                                        n_classes=opt.n_classes,
-                                        n_input_channels=opt.n_input_channels,
-                                        conv1_t_size=opt.conv1_t_size,
-                                        conv1_t_stride=opt.conv1_t_stride,
-                                        no_max_pool=opt.no_max_pool)
-
+    elif str(model_name) == 'resnet2p1d':
+        model = resnet2p1d.generate_model(model_depth=model_depth,
+                                        n_classes=n_classes,
+                                        n_input_channels=n_input_channels,
+                                        shortcut_type=resnet_shortcut,
+                                        conv1_t_size=conv1_t_size,
+                                        conv1_t_stride=conv1_t_stride,
+                                        no_max_pool=no_max_pool,
+                                        widen_factor=resnet_widen_factor)
+    elif str(model_name) == 'wideresnet':
+        model = wide_resnet.generate_model(model_depth=model_depth,
+                                        k=wide_resnet_k,
+                                        n_classes=n_classes,
+                                        n_input_channels=n_input_channels,
+                                        shortcut_type=resnet_shortcut,
+                                        conv1_t_size=conv1_t_size,
+                                        conv1_t_stride=conv1_t_stride,
+                                        no_max_pool=no_max_pool)
+    elif str(model_name) == 'resnext':
+        model = resnext.generate_model(model_depth=model_depth,
+                                    cardinality=resnext_cardinality,
+                                    n_classes=n_classes,
+                                    n_input_channels=n_input_channels,
+                                    shortcut_type=resnet_shortcut,
+                                    conv1_t_size=conv1_t_size,
+                                    conv1_t_stride=conv1_t_stride,
+                                    no_max_pool=no_max_pool)
+    elif str(model_name) == 'densenet':
+        model = densenet.generate_model(model_depth=model_depth,
+                                        n_classes=n_classes,
+                                        n_input_channels=n_input_channels,
+                                        conv1_t_size=conv1_t_size,
+                                        conv1_t_stride=conv1_t_stride,
+                                        no_max_pool=no_max_pool)
+    
     return model
 
 def resume_model(resume_path, arch, model):
