@@ -30,9 +30,9 @@ def parse_option():
                         help='save frequency')
     parser.add_argument('--batch_size', type=int, default=16,
                         help='batch_size')
-    parser.add_argument('--num_workers', type=int, default=4,
+    parser.add_argument('--num_workers', type=int, default=1,
                         help='num of workers to use')
-    parser.add_argument('--epochs', type=int, default=100,
+    parser.add_argument('--epochs', type=int, default=200,
                         help='number of training epochs')
     parser.add_argument('--model_name', type=str, default='resnet',
                         help='number of training epochs')
@@ -71,10 +71,6 @@ def parse_option():
     for it in iterations:
         opt.lr_decay_epochs.append(int(it))
 
-    
-    opt.db_model_name = 'best_model_resnet_Dashboard.pth'
-    opt.rear_model_name = 'best_model_resnet_Rear.pth'
-    opt.right_model_name = 'best_model_resnet_Right.pth'
 
     # warm-up for large-batch training,
     if opt.warm:
@@ -106,18 +102,6 @@ def set_model(opt):
     
     criterion = torch.nn.CrossEntropyLoss()
     
-    # if torch.cuda.is_available():
-    #     if torch.cuda.device_count() > 1:
-    #         model = torch.nn.DataParallel(model)
-    #     else:
-    #         new_state_dict = {}
-    #         for k, v in state_dict.items():
-    #             k = k.replace("module.", "")
-    #             new_state_dict[k] = v
-    #         state_dict = new_state_dict
-    #     model = model.cuda()
-    #     criterion = criterion.cuda()
-    #     cudnn.benchmark = True
 
     return model, criterion
 
@@ -257,33 +241,3 @@ def main():
 if __name__ == '__main__':
     main()
     
-    #opt = parse_option()
-    from models.prop_model import R3D_MLP, parse_args
-    from models.resnet_linear import Fusion_R3D
-    opt = parse_args()
-    
-    
-    #inp = torch.rand(8, 3, 16, 112, 112).cuda()
-    
-    inp = torch.rand([1, 1, 16, 112, 112]).cuda()
-    
-    
-    
-    #128, 2048 (vec, classification)
-    
-    # fusion = Fusion_R3D(dash=model, rear=model, right=model, with_classifier=True).cuda()
-    # x3 = fusion(inp)
-    # print(x3.shape)
-    # from opts import parse_args
-    # # opt = parse_args()
-    # input = torch.rand(5, 3, 16, 112, 112).cuda()
-    # #r2p1d50_K_200ep.pth --model resnet --model_depth 50 --n_pretrain_classes 700 -> 93.4 (1st)
-
-    
-    inp = torch.rand(8, 3, 16, 112, 112).cuda()
-    model = Fusion_R3D(dash=R3D_MLP(128, 50, opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
-               rear=R3D_MLP(128, 50, opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')),
-               right=R3D_MLP(128, 50, opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Right.pth')),
-               with_classifier=True)
-    print(model)
-    #model = generate_model(opt, removed_classifier=True)

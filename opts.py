@@ -50,7 +50,7 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
     parser.add_argument('--warm', default=False, type=bool, help='warm-up for large batch training')
     parser.add_argument('--warm_epochs', default=10, type=int, help='warm epochs for training')
     parser.add_argument('--warmup_from', default=0.01, type=float, help='warm epochs for training')
-    
+    parser.add_argument('--print_freq', default=1, type=int, help='print frequency when u train/test gui interface')
     parser.add_argument('--resume_head_path', default='', type=str, help='path of previously trained model head')
     parser.add_argument('--model_name',
                         default=model,
