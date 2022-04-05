@@ -46,7 +46,7 @@ class Logger(object):
         self.log_file.flush()
 
 
-def adjust_learning_rate(args, optimizer, epoch):
+def adjust_learning_rate_cosine(args, optimizer, epoch):
     lr = args.learning_rate
     if args.cosine:
         eta_min = lr * (args.lr_decay_rate ** 3)

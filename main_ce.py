@@ -27,91 +27,7 @@ try:
 except ImportError:
     pass
 
-
-def parse_option():
-    parser = argparse.ArgumentParser('argument for training')
-
-    parser.add_argument('--print_freq', type=int, default=10,
-                        help='print frequency')
-    parser.add_argument('--save_freq', type=int, default=50,
-                        help='save frequency')
-    parser.add_argument('--batch_size', type=int, default=256,
-                        help='batch_size')
-    parser.add_argument('--num_workers', type=int, default=16,
-                        help='num of workers to use')
-    parser.add_argument('--epochs', type=int, default=500,
-                        help='number of training epochs')
-
-    # optimization
-    parser.add_argument('--learning_rate', type=float, default=0.2,
-                        help='learning rate')
-    parser.add_argument('--lr_decay_epochs', type=str, default='350,400,450',
-                        help='where to decay lr, can be a list')
-    parser.add_argument('--lr_decay_rate', type=float, default=0.1,
-                        help='decay rate for learning rate')
-    parser.add_argument('--weight_decay', type=float, default=1e-4,
-                        help='weight decay')
-    parser.add_argument('--momentum', type=float, default=0.9,
-                        help='momentum')
-
-    # model dataset
-    parser.add_argument('--model', type=str, default='resnet50')
-    parser.add_argument('--dataset', type=str, default='cifar10',
-                        choices=['cifar10', 'cifar100'], help='dataset')
-
-    # other setting
-    parser.add_argument('--cosine', action='store_true',
-                        help='using cosine annealing')
-    parser.add_argument('--syncBN', action='store_true',
-                        help='using synchronized batch normalization')
-    parser.add_argument('--warm', action='store_true',
-                        help='warm-up for large batch training')
-    parser.add_argument('--trial', type=str, default='0',
-                        help='id for recording multiple runs')
-
-    opt = parser.parse_args()
-
-    # set the path according to the environment
-    opt.data_folder = '../A1/newFrame/'
-    opt.model_path = './checkpoints/'
-    
-
-    iterations = opt.lr_decay_epochs.split(',')
-    opt.lr_decay_epochs = list([])
-    for it in iterations:
-        opt.lr_decay_epochs.append(int(it))
-
-    opt.model_name = 'best_model_resnet_Dashboard'
-
-    # warm-up for large-batch training,
-    if opt.batch_size > 256:
-        opt.warm = True
-    if opt.warm:
-        opt.warmup_from = 0.01
-        opt.warm_epochs = 10
-        if opt.cosine:
-            eta_min = opt.learning_rate * (opt.lr_decay_rate ** 3)
-            opt.warmup_to = eta_min + (opt.learning_rate - eta_min) * (
-                    1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
-        else:
-            opt.warmup_to = opt.learning_rate
-
-    opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
-    if not os.path.isdir(opt.tb_folder):
-        os.makedirs(opt.tb_folder)
-
-    opt.save_folder = os.path.join(opt.model_path, opt.model_name)
-    if not os.path.isdir(opt.save_folder):
-        os.makedirs(opt.save_folder)
-
-    
-    opt.n_cls = 18
-    
-    
-    return opt
-
-
-
+from opts import parse_args
 
 def set_loader(opt):
     args = parse_args()
@@ -218,24 +134,6 @@ def set_loader(opt):
     
     return train_normal_loader, validation_loader #train_anormal_loader,
 
-from models.resnet_linear import Fusion_R3D
-def _set_model(opt):
-    model = Fusion_R3D(rear='./checkpoints/best_model_resnet_Dashboard.pth'
-                       , num_classes=opt.n_cls)
-    criterion = torch.nn.CrossEntropyLoss()
-
-    # enable synchronized Batch Normalization
-    if opt.syncBN:
-        model = apex.parallel.convert_syncbn_model(model)
-
-    if torch.cuda.is_available():
-        if torch.cuda.device_count() > 1:
-            model = torch.nn.DataParallel(model)
-        model = model.cuda()
-        criterion = criterion.cuda()
-        cudnn.benchmark = True
-
-    return model, criterion
 
 
 def train(train_loader, model, criterion, optimizer, epoch, opt):

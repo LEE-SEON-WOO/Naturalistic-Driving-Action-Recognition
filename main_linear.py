@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 
 import sys
 import argparse
@@ -12,7 +12,7 @@ from main_ce import set_loader
 from utils.utils import AverageMeter
 from utils.util import adjust_learning_rate, warmup_learning_rate, accuracy
 from utils.util import set_optimizer
-
+import torch
 from models.resnet_linear import Fusion_R3D, R3D_MLP
 try:
     import apex
@@ -103,29 +103,28 @@ def set_model(opt):
                         with_classifier=True)
 
     
+    
     criterion = torch.nn.CrossEntropyLoss()
     
-    if torch.cuda.is_available():
-        if torch.cuda.device_count() > 1:
-            model = torch.nn.DataParallel(model)
-        else:
-            new_state_dict = {}
-            for k, v in state_dict.items():
-                k = k.replace("module.", "")
-                new_state_dict[k] = v
-            state_dict = new_state_dict
-        model = model.cuda()
-        criterion = criterion.cuda()
-        cudnn.benchmark = True
+    # if torch.cuda.is_available():
+    #     if torch.cuda.device_count() > 1:
+    #         model = torch.nn.DataParallel(model)
+    #     else:
+    #         new_state_dict = {}
+    #         for k, v in state_dict.items():
+    #             k = k.replace("module.", "")
+    #             new_state_dict[k] = v
+    #         state_dict = new_state_dict
+    #     model = model.cuda()
+    #     criterion = criterion.cuda()
+    #     cudnn.benchmark = True
 
     return model, criterion
 
 
-def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
+def train(train_loader, model, criterion, optimizer, epoch, opt):
     """one epoch training"""
-    model.eval() #Frozen
-    classifier.train()
-
+    
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -134,23 +133,23 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
     end = time.time()
     for idx, (images, labels) in enumerate(train_loader):
         data_time.update(time.time() - end)
-
+        
         images = images.cuda(non_blocking=True)
-        labels = labels.cuda(non_blocking=True)
+        labels = labels.long().cuda(non_blocking=True)
         bsz = labels.shape[0]
-
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
-
+        
         # compute loss
-        with torch.no_grad():
-            features = model.encoder(images)
-        output = classifier(features.detach())
+        output = model(images)
+        
         loss = criterion(output, labels)
 
         # update metric
         losses.update(loss.item(), bsz)
+
         acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+        
         top1.update(acc1[0], bsz)
 
         # SGD
@@ -176,10 +175,9 @@ def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
     return losses.avg, top1.avg
 
 
-def validate(val_loader, model, classifier, criterion, opt):
+def validate(val_loader, model, criterion, opt):
     """validation"""
     model.eval()
-    classifier.eval()
 
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -188,12 +186,12 @@ def validate(val_loader, model, classifier, criterion, opt):
     with torch.no_grad():
         end = time.time()
         for idx, (images, labels) in enumerate(val_loader):
-            images = images.float().cuda()
+            images = images.cuda()
             labels = labels.cuda()
             bsz = labels.shape[0]
 
             # forward
-            output = classifier(model.encoder(images))
+            output = model(images)
             loss = criterion(output, labels)
 
             # update metric
@@ -207,43 +205,49 @@ def validate(val_loader, model, classifier, criterion, opt):
 
             if idx % opt.print_freq == 0:
                 print('Test: [{0}/{1}]\t'
-                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                       idx, len(val_loader), batch_time=batch_time,
-                       loss=losses, top1=top1))
+                    'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                    'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
+                    idx, len(val_loader), batch_time=batch_time,
+                    loss=losses, top1=top1))
 
     print(' * Acc@1 {top1.avg:.3f}'.format(top1=top1))
     return losses.avg, top1.avg
 
-
+from opts import parse_args
+from utils.util import adjust_learning_rate_cosine
 def main():
     best_acc = 0
-    opt = parse_option()
+    opt = parse_args()
     
     # build data loader
     train_loader, val_loader = set_loader(opt)
 
     # build model and criterion
-    model, classifier, criterion = set_model(opt)
+    model, criterion = set_model(opt)
 
     # build optimizer
-    optimizer = set_optimizer(opt, classifier)
-
+    optimizer = set_optimizer(opt, model)
+    for param in model.parameters():
+        param.requires_grad = False
+    num_ftrs = model.classifier.in_features
+    model.classifier = torch.nn.Linear(num_ftrs, opt.n_classes)
+    
+    model = torch.nn.DataParallel(model)
     # training routine
     for epoch in range(1, opt.epochs + 1):
-        adjust_learning_rate(opt, optimizer, epoch)
+        adjust_learning_rate_cosine(opt, optimizer, epoch)
 
         # train for one epoch
         time1 = time.time()
-        loss, acc = train(train_loader, model, classifier, criterion,
-                        optimizer, epoch, opt)
+        loss, acc = train(train_loader, model, criterion,
+                            optimizer, epoch, opt)
         time2 = time.time()
         print('Train epoch {}, total time {:.2f}, accuracy:{:.2f}'.format(
             epoch, time2 - time1, acc))
 
         # eval for one epoch
-        loss, val_acc = validate(val_loader, model, classifier, criterion, opt)
+        loss, val_acc = validate(val_loader, model, criterion, opt)
         if val_acc > best_acc:
             best_acc = val_acc
 

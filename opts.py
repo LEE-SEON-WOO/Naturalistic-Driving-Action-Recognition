@@ -7,7 +7,7 @@ import argparse
 import ast
 
 def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth', 
-                n_classes:int=1139,
+                n_classes:int=18,
                 n_pretrain_classes:int=1139,
                 n_input_channels:int=1,
                 model:str='resnet',
@@ -23,7 +23,7 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                 sample_size=112,
                 output_topk:int=5,
                 sample_duration=16,
-                input_type:str='rgb',):
+                input_type:str='rgb'):
     parser = argparse.ArgumentParser(description='DAD training on Videos')
     #Train/Test
     parser.add_argument('--root_path', default='../A1/newFrame/', type=str, help='root path of the dataset')
@@ -45,6 +45,12 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
     parser.add_argument('--val_step', default=1, type=int, help='validate per val_step epochs')
     parser.add_argument('--save_step', default=10, type=int, help='checkpoint will be saved every save_step epochs')
     parser.add_argument('--resume_path', default='', type=str, help='path of previously trained model')
+    parser.add_argument('--cosine', default=True, type=bool, help='using cosine annealing')
+    parser.add_argument('--lr_decay_rate', type=float, default=0.2, help='decay rate for learning rate')
+    parser.add_argument('--warm', default=False, type=bool, help='warm-up for large batch training')
+    parser.add_argument('--warm_epochs', default=10, type=int, help='warm epochs for training')
+    parser.add_argument('--warmup_from', default=0.01, type=float, help='warm epochs for training')
+    
     parser.add_argument('--resume_head_path', default='', type=str, help='path of previously trained model head')
     parser.add_argument('--model_name',
                         default=model,
