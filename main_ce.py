@@ -18,7 +18,7 @@ from main import initailizing
 from utils.temporal_transforms import TemporalSequentialCrop
 from utils import spatial_transforms
 from data.train_dataset import DAC
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, ConcatDataset
 import numpy as np
 
 try:
@@ -86,13 +86,13 @@ def set_loader(opt):
     training_anormal_data = Subset(training_anormal_data, np.arange(training_anormal_size))
     
     
-    train_anormal_loader = DataLoader(
-        training_anormal_data,
-        batch_size=args.a_train_batch_size,
-        shuffle=True,
-        num_workers=args.n_threads,
-        pin_memory=False,
-    )
+ # train_anormal_loader = DataLoader(
+    #     training_anormal_data,
+    #     batch_size=args.a_train_batch_size,
+    #     shuffle=True,
+    #     num_workers=args.n_threads,
+    #     pin_memory=False,
+    # )
 
     print("=================================Loading Normal-Driving Training Data!=================================")
     training_normal_data = DAC(root_path=args.root_path,
@@ -107,8 +107,19 @@ def set_loader(opt):
     training_normal_size = int(len(training_normal_data) * args.n_split_ratio)
     training_normal_data = Subset(training_normal_data, np.arange(training_normal_size))
 
-    train_normal_loader = DataLoader(
-        training_normal_data,
+    # train_normal_loader = DataLoader(
+    #     training_normal_data,
+    #     batch_size=args.n_train_batch_size,
+    #     shuffle=True,
+    #     num_workers=args.n_threads,
+    #     pin_memory=False,
+    # )
+
+    print("=================================Loading Train Data!=================================")
+
+
+    train_loader = DataLoader(
+        ConcatDataset(training_normal_data,training_anormal_data),
         batch_size=args.n_train_batch_size,
         shuffle=True,
         num_workers=args.n_threads,
@@ -145,7 +156,7 @@ def set_loader(opt):
     print(f'len_pos: {len_pos}')
     print(f'val_data len:{num_val_data}')
     
-    return train_normal_loader, validation_loader
+    return train_loader, validation_loader
 
 
 
