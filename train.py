@@ -194,8 +194,8 @@ def train(args, before_crop_duration, crop_method):
     print("============================================Generating Model============================================")
     if args.resume_path == '':
         # ===============generate new model or pre-trained model===============
-        from opts import parse_opts
-        opt=parse_opts(pretrain_path='./pretrained/r3d50_KMS_200ep.pth', 
+        from opts import parse_args
+        opt=parse_args(pretrain_path='./pretrained/r3d50_KMS_200ep.pth', 
                         model='resnet',
                         model_depth=args.model_depth,
                         manual_seed=1,
@@ -207,8 +207,6 @@ def train(args, before_crop_duration, crop_method):
                         conv1_t_size=7,
                         conv1_t_stride=1,
                         resnet_shortcut='B',
-                        ft_begin_module='',
-                        batchnorm_sync=True,
                         resnet_widen_factor=1.0,
                         wide_resnet_k=2,
                         resnext_cardinality=32,

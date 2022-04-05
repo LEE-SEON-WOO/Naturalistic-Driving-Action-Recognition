@@ -13,8 +13,7 @@ import torch.backends.cudnn as cudnn
 from utils.utils import AverageMeter
 from utils.util import adjust_learning_rate, warmup_learning_rate, accuracy
 from utils.util import set_optimizer, save_model
-from models.resnet_linear import Fusion_R3D, R3D_MLP
-from utils.config import parse_args
+from models.resnet_linear import Fusion_R3D
 from main import initailizing
 from utils.temporal_transforms import TemporalSequentialCrop
 from utils import spatial_transforms

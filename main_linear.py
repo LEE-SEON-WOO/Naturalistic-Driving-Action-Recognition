@@ -95,11 +95,11 @@ def parse_option():
 
 def set_model(opt):
     model = Fusion_R3D(dash=R3D_MLP(opt.feature_dim, opt.model_depth, 
-                        opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
                         rear=R3D_MLP(opt.feature_dim, opt.model_depth, 
-                        opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')),
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')),
                         right=R3D_MLP(opt.feature_dim, opt.model_depth, 
-                        opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Right.pth')),
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Right.pth')),
                         with_classifier=True)
 
     
@@ -254,9 +254,9 @@ if __name__ == '__main__':
     main()
     
     #opt = parse_option()
-    from models.prop_model import R3D_MLP, parse_opts
+    from models.prop_model import R3D_MLP, parse_args
     from models.resnet_linear import Fusion_R3D
-    opt = parse_opts()
+    opt = parse_args()
     
     
     #inp = torch.rand(8, 3, 16, 112, 112).cuda()
@@ -270,16 +270,16 @@ if __name__ == '__main__':
     # fusion = Fusion_R3D(dash=model, rear=model, right=model, with_classifier=True).cuda()
     # x3 = fusion(inp)
     # print(x3.shape)
-    # from opts import parse_opts
-    # # opt = parse_opts()
+    # from opts import parse_args
+    # # opt = parse_args()
     # input = torch.rand(5, 3, 16, 112, 112).cuda()
     # #r2p1d50_K_200ep.pth --model resnet --model_depth 50 --n_pretrain_classes 700 -> 93.4 (1st)
 
     
     inp = torch.rand(8, 3, 16, 112, 112).cuda()
-    model = Fusion_R3D(dash=R3D_MLP(128, 50, opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
-               rear=R3D_MLP(128, 50, opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')),
-               right=R3D_MLP(128, 50, opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Right.pth')),
+    model = Fusion_R3D(dash=R3D_MLP(128, 50, opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
+               rear=R3D_MLP(128, 50, opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')),
+               right=R3D_MLP(128, 50, opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Right.pth')),
                with_classifier=True)
     print(model)
     #model = generate_model(opt, removed_classifier=True)

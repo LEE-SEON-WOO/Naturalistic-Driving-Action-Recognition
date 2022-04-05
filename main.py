@@ -2,11 +2,11 @@ import os
 import torch
 import ast
 from tqdm import tqdm
+from opts import parse_args
 from train import train
 import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.backends import cudnn
-from utils.config import parse_args
 from utils import spatial_transforms, temporal_transforms
 
 def initailizing(args):
@@ -72,6 +72,7 @@ import torch.distributed as dist
 
 if __name__ == '__main__':
     print("Initializing..")
+    from opts import parse_args
     args = parse_args()
     args.device = torch.device('cuda' if args.use_cuda else 'cpu')
     if args.use_cuda:
