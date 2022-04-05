@@ -11,7 +11,7 @@ import torch
 import torch.backends.cudnn as cudnn
 
 from utils.utils import AverageMeter
-from utils.util import adjust_learning_rate, warmup_learning_rate, accuracy
+from utils.util import adjust_learning_rate, adjust_learning_rate_cosine, warmup_learning_rate, accuracy
 from utils.util import set_optimizer, save_model
 from models.resnet_linear import Fusion_R3D
 from main import initailizing
@@ -28,6 +28,19 @@ except ImportError:
     pass
 
 from opts import parse_args
+
+def set_model(opt):
+    model = Fusion_R3D(dash=R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
+                        rear=R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')),
+                        right=R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Right.pth')),
+                        with_classifier=True)
+    
+    criterion = torch.nn.CrossEntropyLoss()
+    
+    return model, criterion
 
 def set_loader(opt):
     args = parse_args()
@@ -132,7 +145,7 @@ def set_loader(opt):
     print(f'len_pos: {len_pos}')
     print(f'val_data len:{num_val_data}')
     
-    return train_normal_loader, validation_loader #train_anormal_loader,
+    return train_normal_loader, validation_loader
 
 
 
@@ -227,14 +240,14 @@ def validate(val_loader, model, criterion, opt):
     print(' * Acc@1 {top1.avg:.3f}'.format(top1=top1))
     return losses.avg, top1.avg
 
+from opts import parse_args
+from models.resnet_linear import Fusion_R3D, R3D_MLP
 
 def main():
     best_acc = 0
-    opt = parse_option()
-
-    # build data loader
+    opt = parse_args()
+    
     train_loader, val_loader = set_loader(opt)
-
     # build model and criterion
     model, criterion = set_model(opt)
 
@@ -246,7 +259,7 @@ def main():
 
     # training routine
     for epoch in range(1, opt.epochs + 1):
-        adjust_learning_rate(opt, optimizer, epoch)
+        adjust_learning_rate_cosine(opt, optimizer, epoch)
 
         # train for one epoch
         time1 = time.time()
