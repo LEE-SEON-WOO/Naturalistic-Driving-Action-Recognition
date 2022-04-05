@@ -5,7 +5,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='DAD training on Videos')
     parser.add_argument('--root_path', default='../A1/newFrame/', type=str, help='root path of the dataset')
     parser.add_argument('--mode', default='train', type=str, help='train | test(validation)')
-    parser.add_argument('--view', default='Dashboard', type=str, help='Dashboard | Rear | Right')
+    parser.add_argument('--view', default='Right', type=str, help='Dashboard | Rear | Right')
     parser.add_argument('--feature_dim', default=128, type=int, help='To which dimension will video clip be embedded')
     parser.add_argument('--sample_duration', default=16, type=int, help='Temporal duration of each video clip')
     parser.add_argument('--sample_size', default=112, type=int, help='Height and width of inputs')
@@ -21,6 +21,7 @@ def parse_args():
                         default=0,
                         type=int,
                         help='node rank for distributed training')
+    
     parser.add_argument('--learning_rate', default=0.001, type=float,
                         help='Initial learning rate (divided by 10 while training by lr scheduler)')
     parser.add_argument('--momentum', default=0.9, type=float, help='Momentum')

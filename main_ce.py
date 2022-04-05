@@ -67,27 +67,21 @@ def parse_option():
     opt = parser.parse_args()
 
     # set the path according to the environment
-    opt.data_folder = './datasets/'
-    opt.model_path = './save/SupCon/{}_models'.format(opt.dataset)
-    opt.tb_path = './save/SupCon/{}_tensorboard'.format(opt.dataset)
+    opt.data_folder = '../A1/newFrame/'
+    opt.model_path = './checkpoints/'
+    
 
     iterations = opt.lr_decay_epochs.split(',')
     opt.lr_decay_epochs = list([])
     for it in iterations:
         opt.lr_decay_epochs.append(int(it))
 
-    opt.model_name = 'SupCE_{}_{}_lr_{}_decay_{}_bsz_{}_trial_{}'.\
-        format(opt.dataset, opt.model, opt.learning_rate, opt.weight_decay,
-               opt.batch_size, opt.trial)
-
-    if opt.cosine:
-        opt.model_name = '{}_cosine'.format(opt.model_name)
+    opt.model_name = 'best_model_resnet_Dashboard'
 
     # warm-up for large-batch training,
     if opt.batch_size > 256:
         opt.warm = True
     if opt.warm:
-        opt.model_name = '{}_warm'.format(opt.model_name)
         opt.warmup_from = 0.01
         opt.warm_epochs = 10
         if opt.cosine:
@@ -105,14 +99,12 @@ def parse_option():
     if not os.path.isdir(opt.save_folder):
         os.makedirs(opt.save_folder)
 
-    if opt.dataset == 'cifar10':
-        opt.n_cls = 10
-    elif opt.dataset == 'cifar100':
-        opt.n_cls = 100
-    else:
-        raise ValueError('dataset not supported: {}'.format(opt.dataset))
-
+    
+    opt.n_cls = 18
+    
+    
     return opt
+
 
 from utils.config import parse_args
 from main import initailizing
@@ -225,11 +217,12 @@ def set_loader(opt):
     print(f'len_pos: {len_pos}')
     print(f'val_data len:{num_val_data}')
     
-    return train_normal_loader, validation_loader
+    return train_normal_loader+train_anormal_loader, validation_loader
 
-
+from models.resnet_linear import Fusion_R3D
 def set_model(opt):
-    model = SupCEResNet(name=opt.model, num_classes=opt.n_cls)
+    model = Fusion_R3D(rear='./checkpoints/best_model_resnet_Dashboard.pth'
+                       , num_classes=opt.n_cls)
     criterion = torch.nn.CrossEntropyLoss()
 
     # enable synchronized Batch Normalization
