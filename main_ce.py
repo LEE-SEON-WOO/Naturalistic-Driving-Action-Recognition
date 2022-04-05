@@ -9,12 +9,18 @@ import math
 import tensorboard_logger as tb_logger
 import torch
 import torch.backends.cudnn as cudnn
-from torchvision import transforms, datasets
 
 from utils.utils import AverageMeter
 from utils.util import adjust_learning_rate, warmup_learning_rate, accuracy
 from utils.util import set_optimizer, save_model
-from models.resnet_linear import SupCEResNet
+from models.resnet_linear import Fusion_R3D, R3D_MLP
+from utils.config import parse_args
+from main import initailizing
+from utils.temporal_transforms import TemporalSequentialCrop
+from utils import spatial_transforms
+from data.train_dataset import DAC
+from torch.utils.data import DataLoader, Subset
+import numpy as np
 
 try:
     import apex
@@ -106,13 +112,7 @@ def parse_option():
     return opt
 
 
-from utils.config import parse_args
-from main import initailizing
-from utils.temporal_transforms import TemporalSequentialCrop
-from utils import spatial_transforms
-from data.train_dataset import DAC
-from torch.utils.data import DataLoader, Subset
-import numpy as np
+
 
 def set_loader(opt):
     args = parse_args()
@@ -217,10 +217,10 @@ def set_loader(opt):
     print(f'len_pos: {len_pos}')
     print(f'val_data len:{num_val_data}')
     
-    return train_normal_loader+train_anormal_loader, validation_loader
+    return train_normal_loader, validation_loader #train_anormal_loader,
 
 from models.resnet_linear import Fusion_R3D
-def set_model(opt):
+def _set_model(opt):
     model = Fusion_R3D(rear='./checkpoints/best_model_resnet_Dashboard.pth'
                        , num_classes=opt.n_cls)
     criterion = torch.nn.CrossEntropyLoss()

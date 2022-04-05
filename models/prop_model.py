@@ -12,8 +12,8 @@ r3d34_K_200ep.pth: --model resnet --model_depth 50 --n_pretrain_classes 700 -> 8
 r3d18_K_200ep.pth: --model resnet --model_depth 18 --n_pretrain_classes 700 -> 87.8 (5th)
 """
 
-import headers
-headers.all_from('py')
+#import headers
+#headers.all_from('py')
 from headers.head import ProjectionHead
 
 class R3D_MLP(nn.Module):
@@ -209,7 +209,7 @@ def _construct_depth_model(base_model):
 import argparse
 from pathlib import Path
 
-
+"""
 def parse_opts(pretrain_path:str='./checkpoints/best_model_resnet_Dashboard.pth', 
                 model:str='resnet',
                 n_input_channels:int=1,
@@ -322,7 +322,7 @@ def parse_opts(pretrain_path:str='./checkpoints/best_model_resnet_Dashboard.pth'
     args = parser.parse_args()
 
     return args
-
+"""
 
 
 

@@ -12,8 +12,8 @@ from main_ce import set_loader
 from utils.utils import AverageMeter
 from utils.util import adjust_learning_rate, warmup_learning_rate, accuracy
 from utils.util import set_optimizer
-from models.resnet_linear import SupCEResNet, LinearClassifier
 
+from models.resnet_linear import Fusion_R3D, R3D_MLP
 try:
     import apex
     from apex import amp, optimizers
@@ -94,26 +94,20 @@ def parse_option():
 
 
 def set_model(opt):
-    dash_model = SupCEResNet(feature_dim=opt.feature_dim, model_depth=opt.model_depth, num_classes=opt.n_cls)
-    db_model = torch.load(opt.db_model_name, map_location='cpu', strict=True)
-    rear_model = SupCEResNet(feature_dim=opt.feature_dim, model_depth=opt.model_depth, num_classes=opt.n_cls)
-    rr_model = torch.load(opt.rear_model, map_location='cpu', strict=True)
-    right_model = SupCEResNet(feature_dim=opt.feature_dim, model_depth=opt.model_depth, num_classes=opt.n_cls)
-    rt_model = torch.load(opt.right_model, map_location='cpu', strict=True)
+    model = Fusion_R3D(dash=R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
+                        rear=R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')),
+                        right=R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_opts(pretrain_path='./checkpoints/best_model_resnet_Right.pth')),
+                        with_classifier=True)
+
     
     criterion = torch.nn.CrossEntropyLoss()
-    classifier = LinearClassifier(name=opt.model, num_classes=opt.n_cls)
     
-    #model = torch.cat((dash_model, rear_model, right_model), dim=1)
-    
-    state_dict = ckpt['model'] #! 선우수정예정!
-
     if torch.cuda.is_available():
         if torch.cuda.device_count() > 1:
-            dash_model.encoder = torch.nn.DataParallel(dash_model.encoder)
-            rear_model.encoder = torch.nn.DataParallel(rear_model.encoder)
-            right_model.encoder = torch.nn.DataParallel(right_model.encoder)
-            
+            model = torch.nn.DataParallel(model)
         else:
             new_state_dict = {}
             for k, v in state_dict.items():
@@ -121,13 +115,10 @@ def set_model(opt):
                 new_state_dict[k] = v
             state_dict = new_state_dict
         model = model.cuda()
-        classifier = classifier.cuda()
         criterion = criterion.cuda()
         cudnn.benchmark = True
 
-        model.load_state_dict(state_dict)
-
-    return model, classifier, criterion
+    return model, criterion
 
 
 def train(train_loader, model, classifier, criterion, optimizer, epoch, opt):
@@ -246,7 +237,7 @@ def main():
         # train for one epoch
         time1 = time.time()
         loss, acc = train(train_loader, model, classifier, criterion,
-                          optimizer, epoch, opt)
+                        optimizer, epoch, opt)
         time2 = time.time()
         print('Train epoch {}, total time {:.2f}, accuracy:{:.2f}'.format(
             epoch, time2 - time1, acc))
@@ -260,7 +251,7 @@ def main():
 
 
 if __name__ == '__main__':
-    #main()
+    main()
     
     #opt = parse_option()
     from models.prop_model import R3D_MLP, parse_opts

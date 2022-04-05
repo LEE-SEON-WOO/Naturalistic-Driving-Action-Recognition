@@ -1,6 +1,8 @@
 
 import sys, os.path
-
+import sys, os.path
+from os.path import dirname
+sys.path.append(dirname(__file__))
 def all_from(folder='', abspath=None):
     """add all dirs under `folder` to sys.path if any .py files are found.
     Use an abspath if you'd rather do it that way.

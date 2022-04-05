@@ -33,7 +33,7 @@ class LinearClassifier(nn.Module):
     def forward(self, features):
         return self.fc(features)
 
-from prop_model import R3D_MLP
+from .prop_model import R3D_MLP
 class Fusion_R3D(nn.Module):
     def __init__(self, 
                 dash:R3D_MLP,
@@ -70,6 +70,7 @@ class Fusion_R3D(nn.Module):
         return x
 
 if __name__ == '__main__':
+    
     # print(model)
     
     
