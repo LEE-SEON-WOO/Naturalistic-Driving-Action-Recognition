@@ -41,7 +41,7 @@ def set_model(opt):
     criterion = torch.nn.CrossEntropyLoss()
     
     return model, criterion
-from data.cls_dataset import CLS_Train
+from data.cls_dataset import CLS
 class cat_dataloaders():
     """Class to concatenate multiple dataloaders"""
 
@@ -81,7 +81,7 @@ def set_loader(opt):
         ])
 
     print("=================================Loading Driving Training Data!=================================")
-    dash_dataset = CLS_Train(root_path=args.root_path,
+    dash_dataset = CLS(root_path=args.root_path,
                                 subset='train',
                                 view='Dashboard',
                                 sample_duration=before_crop_duration,
@@ -95,7 +95,7 @@ def set_loader(opt):
         num_workers=args.n_threads,
         pin_memory=False,
     )
-    rear_dataset = CLS_Train(root_path=args.root_path,
+    rear_dataset = CLS(root_path=args.root_path,
                                 subset='train',
                                 view='Rear',
                                 sample_duration=before_crop_duration,
@@ -109,7 +109,7 @@ def set_loader(opt):
         num_workers=args.n_threads,
         pin_memory=False,
     )
-    right_dataset = CLS_Train(root_path=args.root_path,
+    right_dataset = CLS(root_path=args.root_path,
                                 subset='train',
                                 view='Right',
                                 sample_duration=before_crop_duration,
@@ -134,21 +134,21 @@ def set_loader(opt):
         spatial_transforms.ToTensor(args.norm_value),
         spatial_transforms.Normalize([0], [1])
     ])
-    val_dash = CLS_Train(root_path=args.root_path,
+    val_dash = CLS(root_path=args.root_path,
                         subset='validation',
                         view='Dashboard',
                         sample_duration=args.sample_duration,
                         type=None,
                         spatial_transform=val_spatial_transform,
                         )
-    val_rear = CLS_Train(root_path=args.root_path,
+    val_rear = CLS(root_path=args.root_path,
                         subset='validation',
                         view='Rear',
                         sample_duration=args.sample_duration,
                         type=None,
                         spatial_transform=val_spatial_transform,
                         )
-    val_right = CLS_Train(root_path=args.root_path,
+    val_right = CLS(root_path=args.root_path,
                         subset='validation',
                         view='Right',
                         sample_duration=args.sample_duration,

@@ -2,6 +2,8 @@ import torch
 import torch.utils.data as data
 from PIL import Image
 import os
+import glob
+from glob import iglob
 import csv
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -86,6 +88,36 @@ def get_clips(video_path, video_begin, video_end, label, view, sample_duration=1
         clips.append(sample_)
     return clips
 
+def get_test_clips(video_path, view, sample_duration=16):
+    """
+    be used when validation set is generated. be used to divide a video interval into video clips
+    :param video_path: validation data path
+    :param video_begin: begin index of frames
+    :param video_end: end index of frames
+    :param label: 1(normal) / 0(anormal)
+    :param view: Dashboard / Right / Rear
+    :param sample_duration: how many frames should one sample contain
+    :return: a list which contains  validation video clips
+    """
+    clips = []
+    sample = {
+        'video': video_path,
+        'view': view,
+    }
+    video_begin = 0
+    dirListing = os.listdir(os.path(video_path,view))
+    interval_len = (len(dirListing))
+    num = int(interval_len / sample_duration)
+    for i in range(num):
+        sample_ = sample.copy()
+        sample_['frame_indices'] = list(range(video_begin, video_begin + sample_duration))
+        clips.append(sample_)
+        video_begin += sample_duration
+    if interval_len % sample_duration != 0:
+        sample_ = sample.copy()
+        sample_['frame_indices'] = list(range(video_begin, interval_len)) + [interval_len - 1] * (sample_duration - (interval_len - video_begin))
+        clips.append(sample_)
+    return clips
 
 def listdir(path):
     """
@@ -158,8 +190,28 @@ def make_dataset_classification(root_path, subset, view, sample_duration, random
     
     return dataset
 
+def make_test_dataset(root_path, view, sample_duration):
+    """
+    Only be used at test time
+    :param root_path: root path, e.g. "/usr/home/aicity/datasets/DAD/DAD/"
+    :param subset: validation
+    :param view: Dashboard | Rear | Right
+    :param sample_duration: how many frames should one sample contain
+    :param type: during training process: type = None
+    :return: list of data samples, each sample is in form {'video':video_path, 
+                                                            'label': 0/1, 
+                                                            'subset': 'train'/'validation', 
+                                                            'view': 'Dashboard' / 'Rear' / 'Right', 
+                                                            'action': 'normal' / other anormal actions }
+    """
+    dataset = []
+    video_list = [lists for lists in glob.iglob(os.path.join(root_path,'./*'), recursive=True)]
+    for video_path in video_list:
+        clips = get_test_clips(video_path=video_path, view=view, sample_duration=sample_duration)
+        dataset = dataset + clips
+    return dataset
 
-class CLS_Train(data.Dataset):
+class CLS(data.Dataset):
     """
     This dataset is only used at test time to genrate consecutive video samples.
     """
@@ -174,9 +226,12 @@ class CLS_Train(data.Dataset):
                 spatial_transform=None,
                 temporal_transform=None,
                 ):
-        self.data = make_dataset_classification(root_path=root_path, subset=subset, view=view, sample_duration=sample_duration, 
-                                                            random_state=random_state, 
-                                                            type=type)
+        if subset == 'train' or subset=='validation' :
+            self.data = make_dataset_classification(root_path=root_path, subset=subset, view=view, sample_duration=sample_duration, 
+                                                                random_state=random_state, 
+                                                                type=type)
+        elif subset == 'test' :
+            self.data = make_test_dataset(root_path=root_path, view=view, sample_duration=sample_duration)
         self.sample_duration = sample_duration
         self.subset = subset
         self.loader = get_loader
@@ -209,6 +264,14 @@ class CLS_Train(data.Dataset):
             
             clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
             return clip, ground_truth
+        
+        elif self.subset == 'test':
+            video_path = self.data[index]['video']
+            frame_indices = self.data[index]['frame_indices']
+            clip = self.loader(video_path, frame_indices)
+            clip = [img for img in clip]
+            clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
+            return clip
         else:
             print('!!!DATA LOADING FAILURE!!!THIS DATASET IS ONLY USED IN TESTING MODE!!!PLEASE CHECK INPUT!!!')
             
