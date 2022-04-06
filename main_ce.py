@@ -11,7 +11,7 @@ import torch
 import torch.backends.cudnn as cudnn
 
 from utils.utils import AverageMeter
-from utils.util import adjust_learning_rate, adjust_learning_rate_cosine, warmup_learning_rate, accuracy
+from utils.util import adjust_learning_rate_cosine, warmup_learning_rate, accuracy
 from utils.util import set_optimizer, save_model
 from models.resnet_linear import Fusion_R3D
 from main import initailizing
@@ -229,14 +229,15 @@ def main():
 
         # tensorboard logger
         
-        train_loss = loss.item()
+        train_loss = loss
         # evaluation
         loss, val_acc = validate(val_loader, model, criterion, opt)
         
-        val_loss = val_loss.item()
+        val_loss = loss
         if val_acc > best_acc:
             best_acc = val_acc
-        
+            save_model(model, optimizer, opt, epoch, save_file)
+            
         logger.log({'epoch':epoch,
                     'train_loss':train_loss,
                     'learning_rate':optimizer.param_groups[0]['lr'],
