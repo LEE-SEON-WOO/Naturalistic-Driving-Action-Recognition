@@ -42,6 +42,28 @@ def set_model(opt):
     
     return model, criterion
 from data.cls_dataset import CLS_Train
+class cat_dataloaders():
+    """Class to concatenate multiple dataloaders"""
+
+    def __init__(self, dataloaders):
+        self.dataloaders = dataloaders
+        len(self.dataloaders)
+
+    def __iter__(self):
+        self.loader_iter = []
+        for data_loader in self.dataloaders:
+            self.loader_iter.append(iter(data_loader))
+        return self
+    
+    def __len__(self):
+        return len(self.dataloaders[0])
+    
+    def __next__(self):
+        out = []
+        for data_iter in self.loader_iter:
+            out.append(next(data_iter)) # may raise StopIteration
+        return tuple(out)
+
 def set_loader(opt):
     args = parse_args()
     crop_method, before_crop_duration = initailizing(args)
@@ -59,24 +81,52 @@ def set_loader(opt):
         ])
 
     print("=================================Loading Driving Training Data!=================================")
-    training_data = CLS_Train(root_path=args.root_path,
+    dash_dataset = CLS_Train(root_path=args.root_path,
                                 subset='train',
-                                view=args.view,
+                                view='Dashboard',
                                 sample_duration=before_crop_duration,
                                 type='train',
                                 spatial_transform=spatial_transform,
                                 temporal_transform=temporal_transform)
-
-    
-    print("=================================Loading Train Data!=================================")
-    train_loader = DataLoader(
-        training_data,
+    dash_loader = DataLoader(
+        dash_dataset,
         batch_size=args.a_train_batch_size,
         shuffle=True,
         num_workers=args.n_threads,
         pin_memory=False,
     )
-
+    rear_dataset = CLS_Train(root_path=args.root_path,
+                                subset='train',
+                                view='Rear',
+                                sample_duration=before_crop_duration,
+                                type='train',
+                                spatial_transform=spatial_transform,
+                                temporal_transform=temporal_transform)
+    rear_loader = DataLoader(
+        rear_dataset,
+        batch_size=args.a_train_batch_size,
+        shuffle=True,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    right_dataset = CLS_Train(root_path=args.root_path,
+                                subset='train',
+                                view='Right',
+                                sample_duration=before_crop_duration,
+                                type='train',
+                                spatial_transform=spatial_transform,
+                                temporal_transform=temporal_transform)
+    right_loader = DataLoader(
+        right_dataset,
+        batch_size=args.a_train_batch_size,
+        shuffle=True,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    train_loader = cat_dataloaders([dash_loader, rear_loader, right_loader])
+    print("=================================Loading Train Data!=================================")
+    
+    
     print("========================================Loading Validation Data========================================")
     val_spatial_transform = spatial_transforms.Compose([
         spatial_transforms.Scale(args.sample_size),
@@ -84,23 +134,52 @@ def set_loader(opt):
         spatial_transforms.ToTensor(args.norm_value),
         spatial_transforms.Normalize([0], [1])
     ])
-    validation_data = CLS_Train(root_path=args.root_path,
+    val_dash = CLS_Train(root_path=args.root_path,
                         subset='validation',
-                        view=args.view,
+                        view='Dashboard',
+                        sample_duration=args.sample_duration,
+                        type=None,
+                        spatial_transform=val_spatial_transform,
+                        )
+    val_rear = CLS_Train(root_path=args.root_path,
+                        subset='validation',
+                        view='Rear',
+                        sample_duration=args.sample_duration,
+                        type=None,
+                        spatial_transform=val_spatial_transform,
+                        )
+    val_right = CLS_Train(root_path=args.root_path,
+                        subset='validation',
+                        view='Right',
                         sample_duration=args.sample_duration,
                         type=None,
                         spatial_transform=val_spatial_transform,
                         )
     
-    validation_loader = DataLoader(
-        validation_data,
+    val_dash_loader = DataLoader(
+        val_dash,
         batch_size=args.val_batch_size,
         shuffle=False,
         num_workers=args.n_threads,
         pin_memory=False,
     )
-    num_val_data = validation_data.__len__()
-    num_train_data = int(len(training_data))
+    val_rear_loader = DataLoader(
+        val_rear,
+        batch_size=args.val_batch_size,
+        shuffle=False,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    val_right_loader = DataLoader(
+        val_right,
+        batch_size=args.val_batch_size,
+        shuffle=False,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    validation_loader = cat_dataloaders([val_dash_loader, val_rear_loader, val_right_loader])
+    num_val_data = val_dash_loader.__len__()
+    num_train_data = int(len(dash_dataset))
     print(f'val_data len:{num_train_data}')
     print(f'val_data len:{num_val_data}')
     
@@ -117,23 +196,27 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
     top1 = AverageMeter()
 
     end = time.time()
-    for idx, (images, labels) in enumerate(train_loader):
+    for idx, (dash, rear, right) in enumerate(train_loader):
         data_time.update(time.time() - end)
-
-        images = images.cuda(non_blocking=True)
-        labels = labels.cuda(non_blocking=True)
-        bsz = labels.shape[0]
+        dash_img, dash_label = dash
+        rear_img, rear_label = rear
+        right_img, right_label = right
+        
+        dash_img, dash_label = dash_img.cuda(non_blocking=True), dash_label.cuda(non_blocking=True)
+        rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
+        bsz = right_label.shape[0]
+        
 
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
 
         # compute loss
-        output = model(images)
-        loss = criterion(output, labels)
+        output = model(dash_img, rear_img, right_img)
+        loss = criterion(output, dash_label)
 
         # update metric
         losses.update(loss.item(), bsz)
-        acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+        acc1, acc5 = accuracy(output, dash_label, topk=(1, 5))
         top1.update(acc1[0], bsz)
 
         # SGD
@@ -169,18 +252,24 @@ def validate(val_loader, model, criterion, opt):
 
     with torch.no_grad():
         end = time.time()
-        for idx, (images, labels) in enumerate(val_loader):
-            images = images.float().cuda()
-            labels = labels.cuda()
-            bsz = labels.shape[0]
+        for idx, (dash, rear, right) in enumerate(val_loader):
 
+            dash_img, dash_label = dash
+            rear_img, rear_label = rear
+            right_img, right_label = right
+            
+            dash_img, dash_label = dash_img.cuda(non_blocking=True), dash_label.cuda(non_blocking=True)
+            rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
+            bsz = right_label.shape[0]
+            
+            
             # forward
-            output = model(images)
-            loss = criterion(output, labels)
+            output = model(dash_img, rear_img, right_img)
+            loss = criterion(output, dash_label)
 
             # update metric
             losses.update(loss.item(), bsz)
-            acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+            acc1, acc5 = accuracy(output, dash_label, topk=(1, 5))
             top1.update(acc1[0], bsz)
 
             # measure elapsed time
@@ -220,7 +309,7 @@ def main():
     # training routine
     for epoch in range(1, opt.epochs + 1):
         adjust_learning_rate_cosine(opt, optimizer, epoch)
-
+        
         # train for one epoch
         time1 = time.time()
         loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, opt)
@@ -234,9 +323,6 @@ def main():
         loss, val_acc = validate(val_loader, model, criterion, opt)
         
         val_loss = loss
-        if val_acc > best_acc:
-            best_acc = val_acc
-            save_model(model, optimizer, opt, epoch, save_file)
             
         logger.log({'epoch':epoch,
                     'train_loss':train_loss,
@@ -245,6 +331,12 @@ def main():
                     'val_acc':val_acc})
         
         if epoch % opt.save_freq == 0:
+            save_file = os.path.join(
+                opt.save_folder, 'ckpt_epoch_{epoch}.pth'.format(epoch=epoch))
+            save_model(model, optimizer, opt, epoch, save_file)
+            
+        if val_acc > best_acc:
+            best_acc = val_acc
             save_file = os.path.join(
                 opt.save_folder, 'ckpt_epoch_{epoch}.pth'.format(epoch=epoch))
             save_model(model, optimizer, opt, epoch, save_file)

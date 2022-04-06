@@ -37,13 +37,12 @@ class Fusion_R3D(nn.Module):
         if with_classifier:
             self.classifier = nn.Linear(feature, n_classes)
             
-    def forward(self, x):
+    def forward(self, x_dash, x_rear, x_right):
         #nm = normal, an = anormal
-        _, d_an = self.dash_model(x)
-        _, rr_an = self.rr_model(x)
+        _, d_an = self.dash_model(x_dash)
         #Projection(vector) positive, anomaly=negative
-        _, rt_an = self.rt_model(x)
-        
+        _, rr_an = self.rr_model(x_rear)
+        _, rt_an = self.rt_model(x_right)
         x = torch.cat([d_an, rr_an, rt_an], axis=1)
         
         x = x.unsqueeze(dim=1)
