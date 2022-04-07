@@ -36,7 +36,7 @@ class cat_dataloaders():
         return tuple(out)
 
 def set_model(opt):
-    model = torch.load('./checkpoints/ckpt_epoch_11.pth')
+    model = torch.load('./checkpoints/ckpt_epoch_1.pth')
     state_dict = model['model']
     criterion =''
     return state_dict, criterion
