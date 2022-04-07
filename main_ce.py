@@ -188,6 +188,7 @@ def set_loader(opt):
 
 def train(train_loader, model, criterion, optimizer, epoch, opt):
     """one epoch training"""
+    model.cuda()
     model.train()
 
     batch_time = AverageMeter()
@@ -209,7 +210,7 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
 
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
-
+        
         # compute loss
         output = model(dash_img, rear_img, right_img)
         loss = criterion(output, dash_label)

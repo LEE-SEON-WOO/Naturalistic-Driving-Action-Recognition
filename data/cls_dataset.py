@@ -40,13 +40,15 @@ def get_default_image_loader():
     else:
         return pil_loader
 
-def get_video(video_path, frame_indices):
+def get_video(video_path, frame_indices, view = None):
     """
     generate a video clip which is a list of selected frames
     :param video_path: path of video folder which contains video frames
     :param frame_indices: list of selected indices of frames. e.g. if index is 1, then selected frame's name is "img_1.png"
     :return: a list of selected frames which are PIL.Image or accimage form
     """
+    if view is not None:
+        video_path = os.path.join(video_path,view)
     image_reader = get_default_image_loader()
     video = []
     for image_index in frame_indices:
@@ -102,10 +104,12 @@ def get_test_clips(video_path, view, sample_duration=16):
     clips = []
     sample = {
         'video': video_path,
+        'label' : 0,
+        'subset' : ' ',
         'view': view,
     }
     video_begin = 0
-    dirListing = os.listdir(os.path(video_path,view))
+    dirListing = [i for i in sorted(glob.glob(os.path.join(video_path,view,'*')))]
     interval_len = (len(dirListing))
     num = int(interval_len / sample_duration)
     for i in range(num):
@@ -140,14 +144,16 @@ def make_dataset_classification(root_path, subset, view, sample_duration, random
                                                             'view': 'Dashboard' / 'Rear' / 'Right', 
                                                             'action': 'normal' / other anormal actions }
     """
-    video_df = pd.read_csv(os.path.join(root_path,'LABEL.csv'), header=None)
-    video_df.rename(columns={0:'userID', 1:'case', 2:'start', 3:'end', 4:'is_ano', 5:'cls_num'}, inplace=True)
-    video_df.fillna(axis=0, method='ffill', inplace=True)
-    video_df[['userID', 'case', 'start', 'end']] = video_df[['userID', 'case', 'start', 'end']].astype(int)
-    
+    if not type == "test" :
+        video_df = pd.read_csv(os.path.join(root_path,'LABEL.csv'), header=None)
+        video_df.rename(columns={0:'userID', 1:'case', 2:'start', 3:'end', 4:'is_ano', 5:'cls_num'}, inplace=True)
+        video_df.fillna(axis=0, method='ffill', inplace=True)
+        video_df[['userID', 'case', 'start', 'end']] = video_df[['userID', 'case', 'start', 'end']].astype(int)
+        
+        X_train, X_test, y_train, y_test = train_test_split(video_df[['userID', 'case', 'start', 'end', 'is_ano']], video_df[['cls_num']], 
+                                                            random_state=random_state, stratify=video_df[['cls_num']], test_size=0.2)
+        
     dataset = []
-    X_train, X_test, y_train, y_test = train_test_split(video_df[['userID', 'case', 'start', 'end', 'is_ano']], video_df[['cls_num']], 
-                                                        random_state=random_state, stratify=video_df[['cls_num']], test_size=0.2)
     if subset=='train':
         for idx, row in pd.concat([X_train, y_train], axis=1).reset_index(drop=True).iterrows():
             if idx==0:
@@ -184,31 +190,17 @@ def make_dataset_classification(root_path, subset, view, sample_duration, random
                               label=label, view=view, sample_duration=sample_duration)
             
             dataset = dataset + clips
+            
+    elif subset =='test' and type == 'test':
+        video_list = [lists for lists in sorted(glob.iglob(os.path.join(root_path,'*')))]
+        for video_path in video_list:
+            clips = get_test_clips(video_path=video_path, view=view, sample_duration=sample_duration)
+            dataset = dataset + clips
+            
     else:
         print('!!!DATA LOADING FAILURE!!!CANT FIND CORRESPONDING DATA!!!PLEASE CHECK INPUT!!!')
     
     
-    return dataset
-
-def make_test_dataset(root_path, view, sample_duration):
-    """
-    Only be used at test time
-    :param root_path: root path, e.g. "/usr/home/aicity/datasets/DAD/DAD/"
-    :param subset: validation
-    :param view: Dashboard | Rear | Right
-    :param sample_duration: how many frames should one sample contain
-    :param type: during training process: type = None
-    :return: list of data samples, each sample is in form {'video':video_path, 
-                                                            'label': 0/1, 
-                                                            'subset': 'train'/'validation', 
-                                                            'view': 'Dashboard' / 'Rear' / 'Right', 
-                                                            'action': 'normal' / other anormal actions }
-    """
-    dataset = []
-    video_list = [lists for lists in glob.iglob(os.path.join(root_path,'./*'), recursive=True)]
-    for video_path in video_list:
-        clips = get_test_clips(video_path=video_path, view=view, sample_duration=sample_duration)
-        dataset = dataset + clips
     return dataset
 
 class CLS(data.Dataset):
@@ -226,14 +218,12 @@ class CLS(data.Dataset):
                 spatial_transform=None,
                 temporal_transform=None,
                 ):
-        if subset == 'train' or subset=='validation' :
-            self.data = make_dataset_classification(root_path=root_path, subset=subset, view=view, sample_duration=sample_duration, 
-                                                                random_state=random_state, 
-                                                                type=type)
-        elif subset == 'test' :
-            self.data = make_test_dataset(root_path=root_path, view=view, sample_duration=sample_duration)
+        self.data = make_dataset_classification(root_path=root_path, subset=subset, view=view, sample_duration=sample_duration, 
+                                                            random_state=random_state, 
+                                                            type=type)
         self.sample_duration = sample_duration
         self.subset = subset
+        self.view = view
         self.loader = get_loader
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
@@ -267,11 +257,13 @@ class CLS(data.Dataset):
         
         elif self.subset == 'test':
             video_path = self.data[index]['video']
+            view = self.data[index]['view']
             frame_indices = self.data[index]['frame_indices']
-            clip = self.loader(video_path, frame_indices)
-            clip = [img for img in clip]
+            inform = [video_path, frame_indices[0]]
+            clip = self.loader(video_path, frame_indices, view)
+            clip = [self.spatial_transform(img) for img in clip]
             clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
-            return clip
+            return clip, inform
         else:
             print('!!!DATA LOADING FAILURE!!!THIS DATASET IS ONLY USED IN TESTING MODE!!!PLEASE CHECK INPUT!!!')
             
