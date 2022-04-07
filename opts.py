@@ -34,9 +34,9 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
     parser.add_argument('--model_type', default='resnet', type=str, help='so far only resnet')
     parser.add_argument('--shortcut_type', default='B', type=str, help='Shortcut type of resnet (A | B)')
     parser.add_argument('--pre_train_model', default=True, type=ast.literal_eval, help='Whether use pre-trained model')
-    parser.add_argument('--n_train_batch_size', default=3, type=int, help='Batch Size for normal training data')
-    parser.add_argument('--a_train_batch_size', default=25, type=int, help='Batch Size for anormal training data')
-    parser.add_argument('--val_batch_size', default=25, type=int, help='Batch Size for validation data')
+    parser.add_argument('--n_train_batch_size', default=16, type=int, help='Batch Size for normal training data')
+    parser.add_argument('--a_train_batch_size', default=32, type=int, help='Batch Size for anormal training data')
+    parser.add_argument('--val_batch_size', default=32, type=int, help='Batch Size for validation data')
     parser.add_argument('--checkpoint_folder', default='./checkpoints/', type=str, help='folder to store checkpoints')
     parser.add_argument('--log_folder', default='./logs/', type=str, help='folder to store log files')
     parser.add_argument('--log_resume', default=False, type=ast.literal_eval, help='True|False: a flag controlling whether to create a new log file')
@@ -122,9 +122,9 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                         type=int,
                         help='Top-k scores are saved in json file.')
     #Related Model(Hyperparameter)
-    parser.add_argument('--view', default='Right', type=str, help='Dashboard | Rear | Right')
+    parser.add_argument('--view', default='Rear', type=str, help='Dashboard | Rear | Right')
     # optimization
-    parser.add_argument('--learning_rate', type=float, default=0.2, help='learning rate') #0.001 ->0.2
+    parser.add_argument('--learning_rate', type=float, default=0.001, help='learning rate') #0.001 ->0.2
     parser.add_argument('--lr_decay_epochs', type=str, default='150,200,250',
                         help='where to decay lr, can be a list')
     #parser.add_argument('--learning_rate', default=0.001, type=float, help='Initial learning rate (divided by 10 while training by lr scheduler)')
