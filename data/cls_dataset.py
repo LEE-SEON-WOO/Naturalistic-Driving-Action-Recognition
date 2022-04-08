@@ -146,7 +146,9 @@ def make_dataset_classification(root_path, subset, view, sample_duration, random
     video_df[['userID', 'case', 'start', 'end']] = video_df[['userID', 'case', 'start', 'end']].astype(int)
     
     dataset = []
-    X_train, X_test, y_train, y_test = train_test_split(video_df[['userID', 'case', 'start', 'end', 'is_ano']], video_df[['cls_num']], 
+    X_train = video_df[['userID', 'case', 'start', 'end', 'is_ano']]
+    y_train = video_df[['cls_num']]
+    _, X_test, _, y_test = train_test_split(video_df[['userID', 'case', 'start', 'end', 'is_ano']], video_df[['cls_num']], 
                                                         random_state=random_state, stratify=video_df[['cls_num']], test_size=0.2)
     if subset=='train':
         for idx, row in pd.concat([X_train, y_train], axis=1).reset_index(drop=True).iterrows():

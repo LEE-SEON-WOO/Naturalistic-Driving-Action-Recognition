@@ -332,7 +332,7 @@ def main():
         
         if epoch % opt.save_freq == 0:
             save_file = os.path.join(
-                opt.save_folder, 'ckpt_epoch_best_{loss}_{epoch}.pth'.format(epoch=epoch))
+                opt.save_folder, 'ckpt_epoch_best_{loss}_{epoch}.pth'.format(epoch=epoch, loss=loss))
             save_model(model, optimizer, opt, epoch, save_file)
             
         if val_acc > best_acc:

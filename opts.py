@@ -122,16 +122,16 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                         type=int,
                         help='Top-k scores are saved in json file.')
     #Related Model(Hyperparameter)
-    parser.add_argument('--view', default='Rear', type=str, help='Dashboard | Rear | Right')
+    parser.add_argument('--view', default='Dashboard', type=str, help='Dashboard | Rear | Right')
     # optimization
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='learning rate') #0.001 ->0.2
+    parser.add_argument('--learning_rate', type=float, default=0.2, help='learning rate') #0.001 ->0.2
     parser.add_argument('--lr_decay_epochs', type=str, default='150,200,250',
                         help='where to decay lr, can be a list')
     #parser.add_argument('--learning_rate', default=0.001, type=float, help='Initial learning rate (divided by 10 while training by lr scheduler)')
     parser.add_argument('--momentum', default=0.9, type=float, help='Momentum')
     parser.add_argument('--dampening', default=0.0, type=float, help='dampening of SGD')
     parser.add_argument('--weight_decay', default=1e-4, type=float, help='Weight Decay')
-    parser.add_argument('--epochs', default=300, type=int, help='Number of total epochs to run')
+    parser.add_argument('--epochs', default=250, type=int, help='Number of total epochs to run')
     parser.add_argument('--norm_value', default=255, type=int,
                         help='If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1].')
     parser.add_argument('--cal_vec_batch_size', default=64, type=int,
