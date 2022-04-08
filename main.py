@@ -4,6 +4,7 @@ import ast
 from tqdm import tqdm
 from opts import parse_args
 from train import train
+from test import test
 import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.backends import cudnn
@@ -66,7 +67,10 @@ def main(index, args):
     
     if args.mode == 'train':
         train(args, before_crop_duration=crop_duration, crop_method=crop_method)
-    
+    elif args.mode == 'test':
+        test(args)
+
+
 import torch.multiprocessing as mp
 import torch.distributed as dist
 

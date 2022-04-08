@@ -12,6 +12,7 @@ from tqdm import tqdm
 from models.resnet_linear import Fusion_R3D
 from models.prop_model import R3D_MLP
 from data.cls_dataset import CLS
+from postprocessing import postprocessing
 
 class cat_dataloaders():
     """Class to concatenate multiple dataloaders"""
@@ -36,7 +37,7 @@ class cat_dataloaders():
         return tuple(out)
 
 def set_model(opt):
-    model = torch.load('./checkpoints/ckpt_epoch_1.pth')
+    model = torch.load('./checkpoints/ckpt_epoch_best_2.3327221272466385_200.pth')
     state_dict = model['model']
     criterion =''
     return state_dict, criterion
@@ -107,7 +108,7 @@ def test(test_loader, model):
     model.cuda()
     model.eval()
     
-    with open('./output.csv','w') as f:
+    with open('./output/output/output.csv','w') as f:
         fieldnames = ['video_id', 'activity_id', 'time']
         writer = csv.DictWriter(f,fieldnames = fieldnames)
         with torch.no_grad():
@@ -157,10 +158,12 @@ def main(index, args):
 
     test(test_loader, model)
     
-    output = pd.read_csv('./output.csv', header=None)
+    postprocessing('./output/output/output.csv','./output/output/processedOutput.csv')
+    
+    output = pd.read_csv('./output/output/processedOutput.csv', header=None)
     output.sort_values(by=[0,2],inplace=True)
     
-    with open('./last.csv','w') as f:
+    with open('./output/last/last.txt','w',) as f:
         fieldnames = ['video_id', 'activity_id', 'start_time','end_time']
         writer = csv.DictWriter(f, fieldnames = fieldnames)
         video_id = -1
@@ -175,8 +178,7 @@ def main(index, args):
                 recent_time=-1
                 continue
             if item[0] != video_id or item[1] != activity_id:
-                if activity_id != 0 :
-                    writer.writerow({'video_id':video_id, 'activity_id':activity_id, 'start_time':math.ceil(start_time/30), 'end_time':math.trunc((recent_time+15)/30)})
+                writer.writerow({'video_id':video_id, 'activity_id':activity_id, 'start_time':math.ceil(start_time/30), 'end_time':math.trunc((recent_time+15)/30)})
                 video_id = item[0]
                 activity_id = item[1]
                 start_time = item[2]

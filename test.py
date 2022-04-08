@@ -6,18 +6,23 @@ from models.prop_model import R3D_MLP
 from data.test_dataset import DAC_Test
 from data.train_dataset import DAC
 from utils.util import get_normal_vector, cal_score, get_score, get_fusion_label, evaluate, post_process
-
+import csv, tqdm
+from opts import parse_args
 def test(args):
+    opt = parse_args()
     if not os.path.exists(args.normvec_folder):
         os.makedirs(args.normvec_folder)
-    score_folder = './score/'
-    if not os.path.exists(score_folder):
-        os.makedirs(score_folder)
+    
+    if not os.path.exists(args.score_folder):
+        os.makedirs(args.score_folder)
     args.pre_train_model = False
 
-    model_dashboard = R3D_MLP(feature_dim=args.feature_dim, model_depth=args.model_depth, opt=args)
-    model_rear = R3D_MLP(feature_dim=args.feature_dim, model_depth=args.model_depth, opt=args)
-    model_right = R3D_MLP(feature_dim=args.feature_dim, model_depth=args.model_depth, opt=args)
+    model_dashboard = R3D_MLP(args.feature_dim, args.model_depth, 
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')).cuda()
+    model_rear = R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Rear.pth')).cuda()
+    model_right =R3D_MLP(opt.feature_dim, opt.model_depth, 
+                        opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Right.pth')).cuda()
 
     resume_path_dashboard = './checkpoints/best_model_' + args.model_type + '_Dashboard.pth'
     resume_path_rear = './checkpoints/best_model_' + args.model_type + '_Rear.pth'
@@ -109,7 +114,7 @@ def test(args):
     train_normal_loader_for_test_dashboard = torch.utils.data.DataLoader(
         training_normal_dashboard,
         batch_size=args.cal_vec_batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=args.n_threads,
         pin_memory=False,
     )
@@ -130,7 +135,7 @@ def test(args):
     train_normal_loader_for_test_rear = torch.utils.data.DataLoader(
         training_normal_data_rear,
         batch_size=args.cal_vec_batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=args.n_threads,
         pin_memory=False)
     print(f'Rear view is done (size: {len(training_normal_data_rear)})')
@@ -150,7 +155,7 @@ def test(args):
     train_normal_loader_for_test_right = torch.utils.data.DataLoader(
         training_normal_data_right,
         batch_size=args.cal_vec_batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=args.n_threads,
         pin_memory=False,
     )
@@ -177,29 +182,32 @@ def test(args):
     cal_score(model_dashboard, model_rear, model_right, 
                 normal_vec_dashboard, normal_vec_rear, normal_vec_right, 
                 test_loader_dashboard, test_loader_rear, test_loader_right, 
-                score_folder, args.use_cuda)
+                args.score_folder, args.use_cuda)
 
     gt = get_fusion_label(os.path.join(args.root_path, 'LABEL.csv'))
 
+
     hashmap = {'Dashboard': 'dashboard',
                 'Rear': 'rear',
-                'Right': 'Right',
+                'Right': 'right',
                 
-                'fusion_Dashboard_Rear': 'fu_dash_rear',
-                'fusion_Dashboard_Right': 'fu_dash_right',
-                'fusion_Rear_Right': 'fu_rear_right',
+                'fusion_Dashboard_Right': 'dashboard+right',
+                'fusion_Dashboard_Rear': 'dash+rear',
+                'fusion_Rear_Right': 'rear+right',
                 
-                'fusion_all': 'fu_all'
+                'fusion_all': 'dash+rear+right'
+                
                 }
 
-    for mode, mode_name in hashmap.items():
-        score = get_score(score_folder, mode)
+    for mode, value in hashmap.items():
+        print(mode, value)
+        score = get_score(args.score_folder, mode)
         best_acc, best_threshold, AUC = evaluate(score, gt, False)
         print(
-            f'Mode: {mode_name}:      Best Acc: {round(best_acc, 2)} | Threshold: {round(best_threshold, 2)} | AUC: {round(AUC, 4)}')
+            f'Mode: {mode}:      Best Acc: {round(best_acc, 2)} | Threshold: {round(best_threshold, 2)} | AUC: {None}')
         score = post_process(score, args.window_size)
         best_acc, best_threshold, AUC = evaluate(score, gt, False)
         print(
-            f'View: {mode_name}(post-processed):       Best Acc: {round(best_acc, 2)} | Threshold: {round(best_threshold, 2)} | AUC: {round(AUC, 4)} \n')
+            f'View: {mode}(post-processed):       Best Acc: {round(best_acc, 2)} | Threshold: {round(best_threshold, 2)} | AUC: {None} \n')
 
 

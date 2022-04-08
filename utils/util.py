@@ -1,4 +1,5 @@
 from __future__ import print_function
+from ast import excepthandler
 from torch import nn
 import torch
 import math
@@ -113,7 +114,7 @@ def adjust_learning_rate(optimizer, lr_rate):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr_rate
 
-
+import pandas as pd
 
 def get_fusion_label(csv_path):
     """
@@ -121,19 +122,21 @@ def get_fusion_label(csv_path):
     :param csv_path: path of csv file
     :return: ground truth labels
     """
-    gt = np.zeros(360000)
-    base = -10000
-    with open(csv_path) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        for row in csv_reader:
-            if row[-1] == '':
-                continue
-            if row[1] != '':
-                base += 10000
-            if row[4] == 'N':
-                gt[base + int(row[2]):base + int(row[3]) + 1] = 1
-            else:
-                continue
+    video_df = pd.read_csv(os.path.join(csv_path), header=None)
+    video_df.rename(columns={0:'userID', 1:'case', 2:'start', 3:'end', 4:'is_ano', 5:'cls_num'}, inplace=True)
+    video_df.fillna(axis=0, method='ffill', inplace=True)
+    video_df[['userID', 'case', 'start', 'end']] = video_df[['userID', 'case', 'start', 'end']].astype(int)
+    X_train = video_df[['userID', 'case', 'start', 'end', 'is_ano']]
+    y_train = video_df[['cls_num']]
+    gt = []
+    for idx, row in pd.concat([X_train, y_train], axis=1).reset_index(drop=True).iterrows():
+        which_val_path = os.path.join(str(row[0]))
+        video_path = os.path.join(str(row[1]))
+        video_begin = int(row[2])
+        video_end = int(row[3])
+        label = str(row[4])
+        gt.append([os.path.join(which_val_path, video_path), video_begin, video_end, label])
+    gt = np.array(gt)
     return gt
 
 def evaluate(score, label, whether_plot):
@@ -148,26 +151,33 @@ def evaluate(score, label, whether_plot):
     best_acc = 0.
     best_threshold = 0.
     for threshold in thresholds:
-        prediction = score >= threshold # TODO! 
+        try:
+            prediction = score >= threshold # TODO! 
+        except:
+            print(score, threshold)
+            continue
         correct = prediction[prediction == label]
 
         acc = (np.sum(correct) / correct.shape[0] * 100)
         if acc > best_acc:
             best_acc = acc
             best_threshold = threshold
+    return best_acc, best_threshold, None
+    fpr = dict()
+    tpr = dict()
+    for i in range(n_classes):
+        fpr[i], tpr[i], thresholds[i] = metrics.roc_curve(label[:, i], score[:, i], pos_label=i)
+        AUC = auc(fpr[i], tpr[i])
 
-    fpr, tpr, thresholds = metrics.roc_curve(label, score, pos_label=1)
-    AUC = auc(fpr, tpr)
-
-    if whether_plot:
-        plt.plot(fpr, tpr, color='r')
-        #plt.fill_between(fpr, tpr, color='r', y2=0, alpha=0.3)
-        plt.plot(np.array([0., 1.]), np.array([0., 1.]), color='b', linestyle='dashed')
-        plt.tick_params(labelsize=23)
-        #plt.text(0.9, 0.1, f'AUC: {round(AUC, 4)}', fontsize=25)
-        plt.xlabel('False Positive Rate', fontsize=25)
-        plt.ylabel('True Positive Rate', fontsize=25)
-        plt.show()
+        if whether_plot:
+            plt.plot(fpr[i], tpr[i], color='r')
+            #plt.fill_between(fpr, tpr, color='r', y2=0, alpha=0.3)
+            plt.plot(np.array([0., 1.]), np.array([0., 1.]), color='b', linestyle='dashed')
+            plt.tick_params(labelsize=23)
+            #plt.text(0.9, 0.1, f'AUC: {round(AUC, 4)}', fontsize=25)
+            plt.xlabel('False Positive Rate', fontsize=25)
+            plt.ylabel('True Positive Rate', fontsize=25)
+            plt.show()
     return best_acc, best_threshold, AUC
 
 
@@ -189,9 +199,9 @@ def get_normal_vector(model, train_normal_loader_for_test, cal_vec_batch_size, f
     total_batch = int(len(train_normal_loader_for_test))
     print("=====================================Calculating Average Normal Vector=====================================")
     if use_cuda:
-        normal_vec = torch.zeros((1, 512)).cuda()
+        normal_vec = torch.zeros((1, 2048)).cuda()
     else:
-        normal_vec = torch.zeros((1, 512))
+        normal_vec = torch.zeros((1, 2048))
     for batch, (normal_data, idx) in enumerate(train_normal_loader_for_test):
         if use_cuda:
             normal_data = normal_data.cuda()
@@ -263,31 +273,28 @@ def get_score(score_folder, mode):
     :param mode: Dashboard | Rear | Right | Rear | fusion_Dashboard | fusion_Rear | fusion_Right | fusion_all
     :return: the corresponding scores according to requirements
     """
-    if mode not in ['Dashboard', 'Right', 'Rear', 'fusion_DashBoard_Right', 'fusion_DashBoard_Rear', 'fusion_Rear_Right', 'fusion_all']:
-        print('Please enter correct mode: Dashboard | Right | Rear | fusion_Dashboard | fusion_Right | fusion_Rear | fusion_all')
-        return
     if mode == 'Dashboard':
-        score = np.load(os.path.join(score_folder + '/score_dashboard.npy'))
+        score = np.load(os.path.join(score_folder,'score_dashboard.npy'))
     elif mode == 'Rear':
-        score = np.load(os.path.join(score_folder + '/score_rear.npy'))
+        score = np.load(os.path.join(score_folder,'score_rear.npy'))
     elif mode == 'Right':
-        score = np.load(os.path.join(score_folder + '/score_Right.npy'))
+        score = np.load(os.path.join(score_folder,'score_right.npy'))
     elif mode == 'fusion_Dashboard_Right':
-        score1 = np.load(os.path.join(score_folder + '/score_Dashboard.npy'))
-        score2 = np.load(os.path.join(score_folder + '/score_Right.npy'))
+        score1 = np.load(os.path.join(score_folder, 'score_dashboard.npy'))
+        score2 = np.load(os.path.join(score_folder, 'score_right.npy'))
         score = np.mean((score1, score2), axis = 0)
     elif mode == 'fusion_Dashboard_Rear':
-        score3 = np.load(os.path.join(score_folder + '/score_Dashboard.npy'))
-        score4 = np.load(os.path.join(score_folder + '/score_Rear.npy'))
+        score3 = np.load(os.path.join(score_folder, 'score_dashboard.npy'))
+        score4 = np.load(os.path.join(score_folder, 'score_rear.npy'))
         score = np.mean((score3, score4), axis=0)
     elif mode == 'fusion_Rear_Right':
-        score1 = np.load(os.path.join(score_folder + '/score_Right.npy'))
-        score3 = np.load(os.path.join(score_folder + '/score_Rear.npy'))
+        score1 = np.load(os.path.join(score_folder, 'score_right.npy'))
+        score3 = np.load(os.path.join(score_folder, 'score_rear.npy'))
         score = np.mean((score1, score3), axis=0)
     elif mode == 'fusion_all':
-        score1 = np.load(os.path.join(score_folder + '/score_Dashboard.npy'))
-        score2 = np.load(os.path.join(score_folder + '/score_Rear.npy'))
-        score3 = np.load(os.path.join(score_folder + '/score_Right.npy'))
+        score1 = np.load(os.path.join(score_folder, 'score_dashboard.npy'))
+        score2 = np.load(os.path.join(score_folder, 'score_rear.npy'))
+        score3 = np.load(os.path.join(score_folder, 'score_right.npy'))
         score = np.mean((score1, score2, score3), axis=0)
 
     return score
