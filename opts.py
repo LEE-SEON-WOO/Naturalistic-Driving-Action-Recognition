@@ -26,8 +26,8 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                 input_type:str='rgb'):
     parser = argparse.ArgumentParser(description='DAD training on Videos')
     #Train/Test
-    parser.add_argument('--root_path', default='../A1/newFrame/', type=str, help='root path of the dataset')
-    # parser.add_argument('--root_path', default='../A2_slice/', type=str, help='root path of the dataset')
+    # parser.add_argument('--root_path', default='../A1/newFrame/', type=str, help='root path of the dataset')
+    parser.add_argument('--root_path', default='../A2_slice/', type=str, help='root path of the dataset')
     parser.add_argument('--mode', default='test', type=str, help='train | test(validation)')
     parser.add_argument('--feature_dim', default=feature_dim, type=int, help='To which dimension will video clip be embedded')
     parser.add_argument('--sample_duration', default=sample_duration, type=int, help='Temporal duration of each video clip')

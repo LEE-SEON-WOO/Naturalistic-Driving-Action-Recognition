@@ -37,7 +37,7 @@ class cat_dataloaders():
         return tuple(out)
 
 def set_model(opt):
-    model = torch.load('./checkpoints/ckpt_epoch_best_2.3327221272466385_200.pth')
+    model = torch.load('./checkpoints/ckpt_epoch_best_2.14747_4.pth')
     state_dict = model['model']
     criterion =''
     return state_dict, criterion
@@ -104,34 +104,42 @@ def set_loader(args):
 
     return test_loader
 
+def max_k(output, topk=(1,)):
+    with torch.no_grad():
+        maxk = max(topk)
+        
+
+        _, pred = output.topk(maxk, 1, True, True)
+        return pred.cpu().numpy().reshape(1, -1).tolist()
+import os
+from collections import defaultdict
 def test(test_loader, model):
     model.cuda()
     model.eval()
-    
-    with open('./output/output/output.csv','w') as f:
-        fieldnames = ['video_id', 'activity_id', 'time']
-        writer = csv.DictWriter(f,fieldnames = fieldnames)
-        with torch.no_grad():
-            outputs = {}
-            for _, (dash, rear, right) in tqdm(enumerate(test_loader)):
+    outputs = defaultdict(list)
+    with torch.no_grad():
+        for _, (dash, rear, right) in tqdm(enumerate(test_loader)):
+            dash_img, inform = dash
+            rear_img, _ = rear
+            right_img, _ = right
+            dash_img = dash_img.cuda(non_blocking=True)
+            rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
+            # forward
+            output = model(dash_img, rear_img, right_img)
+            # outputs.append([inform[0][13:],output,inform[1]])
+            max_top1 = max_k(output, topk=(1,))
+            video_id = [int(path.split(os.sep)[-1]) for path in inform[0]]
+            time = inform[1].numpy().tolist()
+            outputs['video_id'].extend(video_id)
+            outputs['activity_id'].extend(max_top1[0])
+            outputs['time'].extend(time)
 
-                    dash_img, inform = dash
-                    rear_img, _ = rear
-                    right_img, _ = right
-                    dash_img = dash_img.cuda(non_blocking=True)
-                    rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
-                    
-                    # forward
-                    output = model(dash_img, rear_img, right_img)
-                    # outputs.append([inform[0][13:],output,inform[1]])
-                    video_id = ''
-                    for i in range(25):
-                        if inform[0][i] !='' :
-                            video_id = inform[0][i][12:]
-                        writer.writerow({'video_id':video_id, 'activity_id':torch.argmax(output[i]).item(), 'time':inform[1][i].item()})
-            writer.writerows(outputs)
-            f.close()
+    os.makedirs('./output', exist_ok=True)
+    csv_path = './output/output.csv'
+    writer = pd.DataFrame(outputs)
+    writer.to_csv(csv_path, sep=' ', index=False, header=None, line_terminator = '\n')
 
+from test1 import save_aiformat
 def main(index, args):
     random.seed(args.manual_seed)
     np.random.seed(args.manual_seed)
@@ -158,37 +166,9 @@ def main(index, args):
 
     test(test_loader, model)
     
-    postprocessing('./output/output/output.csv','./output/output/processedOutput.csv')
     
-    output = pd.read_csv('./output/output/processedOutput.csv', header=None)
-    output.sort_values(by=[0,2],inplace=True)
-    
-    with open('./output/last/last.txt','w',) as f:
-        fieldnames = ['video_id', 'activity_id', 'start_time','end_time']
-        writer = csv.DictWriter(f, fieldnames = fieldnames)
-        video_id = -1
-        activity_id = -1
-        start_time = -1
-        recent_time=-1
-        for idx, item in output.iterrows():
-            if idx == 0 :
-                video_id = item[0]
-                activity_id = item[1]
-                start_time = item[2]
-                recent_time=-1
-                continue
-            if item[0] != video_id or item[1] != activity_id:
-                writer.writerow({'video_id':video_id, 'activity_id':activity_id, 'start_time':math.ceil(start_time/30), 'end_time':math.trunc((recent_time+15)/30)})
-                video_id = item[0]
-                activity_id = item[1]
-                start_time = item[2]
-                recent_time= item[2]               
-                continue
-            else :
-                recent_time = item[2]
-                continue
-        writer.writerow({'video_id':video_id, 'activity_id':activity_id, 'start_time':math.ceil(start_time/30), 'end_time':math.trunc((recent_time+15)/30)})
-        f.close()
+    #postprocessing('./output/output.csv','./output/processedOutput.csv')
+    save_aiformat(load_path='./output/output.csv', save_path='./output/last.txt')
     
     
 if __name__ == "__main__":

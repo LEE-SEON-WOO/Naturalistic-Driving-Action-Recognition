@@ -3,8 +3,9 @@ from scipy import ndimage
 
 def postprocessing(csvName,savePath):
     output = pd.read_csv(csvName, header=None)
+    
     for _ in range (3):
-        output[1] = ndimage.median_filter(output[1],size=25,mode='nearest')
+        output[1] = ndimage.median_filter(output[1], size=25,mode='nearest')
 
         first=0
         for video_name in range(1,11):

@@ -139,7 +139,7 @@ def make_dataset_classification(root_path, subset, view, sample_duration, random
     :param sample_duration: how many frames should one sample contain
     :param type: during training process: type = None
     :return: list of data samples, each sample is in form {'video':video_path, 
-                                                            'label': 0/1, 
+                                                            'label': 0~18, 
                                                             'subset': 'train'/'validation', 
                                                             'view': 'Dashboard' / 'Rear' / 'Right', 
                                                             'action': 'normal' / other anormal actions }
