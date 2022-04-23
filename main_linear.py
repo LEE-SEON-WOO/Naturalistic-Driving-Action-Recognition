@@ -1,5 +1,6 @@
+from __future__ import print_function
 
-
+import os
 import sys
 import argparse
 import time
@@ -11,83 +12,162 @@ import torch.backends.cudnn as cudnn
 from main_ce import set_loader
 from utils.utils import AverageMeter
 from utils.util import adjust_learning_rate, warmup_learning_rate, accuracy
-from utils.util import set_optimizer
+from utils.util import set_optimizer, save_model
 import torch
 from models.resnet_linear import Fusion_R3D, R3D_MLP
+from main import initailizing
+from utils.temporal_transforms import TemporalSequentialCrop
+from utils import spatial_transforms
+from data.train_dataset import DAC
+from torch.utils.data import DataLoader, Subset, ConcatDataset
+import numpy as np
 try:
     import apex
     from apex import amp, optimizers
 except ImportError:
     pass
+from data.cls_dataset import CLS
+class cat_dataloaders():
+    """Class to concatenate multiple dataloaders"""
 
+    def __init__(self, dataloaders):
+        self.dataloaders = dataloaders
+        len(self.dataloaders)
 
-def parse_option():
-    parser = argparse.ArgumentParser('argument for training')
-
-    parser.add_argument('--print_freq', type=int, default=10,
-                        help='print frequency')
-    parser.add_argument('--save_freq', type=int, default=50,
-                        help='save frequency')
-    parser.add_argument('--batch_size', type=int, default=16,
-                        help='batch_size')
-    parser.add_argument('--num_workers', type=int, default=1,
-                        help='num of workers to use')
-    parser.add_argument('--epochs', type=int, default=200,
-                        help='number of training epochs')
-    parser.add_argument('--model_name', type=str, default='resnet',
-                        help='number of training epochs')
-    # optimization
-    parser.add_argument('--learning_rate', type=float, default=0.1,
-                        help='learning rate')
-    parser.add_argument('--lr_decay_epochs', type=str, default='60,75,90',
-                        help='where to decay lr, can be a list')
-    parser.add_argument('--lr_decay_rate', type=float, default=0.2,
-                        help='decay rate for learning rate')
-    parser.add_argument('--weight_decay', type=float, default=0,
-                        help='weight decay')
-    parser.add_argument('--momentum', type=float, default=0.9,
-                        help='momentum')
-
-    # model depth and dataset
-    parser.add_argument('--model_depth', type=str, default='50')
-    parser.add_argument('--feature_dim', type=int, default=128)
-    parser.add_argument('--dataset', type=str, default='DAC',
-                        choices=['DAC'], help='dataset')
-
-    # other setting
-    parser.add_argument('--cosine', action='store_true',
-                        help='using cosine annealing')
-    parser.add_argument('--warm', action='store_true',
-                        help='warm-up for large batch training')
-
-
-    opt = parser.parse_args()
-
-    # set the path according to the environment
-    opt.data_folder = './checkpoints/'
-
-    iterations = opt.lr_decay_epochs.split(',')
-    opt.lr_decay_epochs = list([])
-    for it in iterations:
-        opt.lr_decay_epochs.append(int(it))
-
-
-    # warm-up for large-batch training,
-    if opt.warm:
-        opt.warmup_from = 0.01
-        opt.warm_epochs = 10
-        if opt.cosine:
-            eta_min = opt.learning_rate * (opt.lr_decay_rate ** 3)
-            opt.warmup_to = eta_min + (opt.learning_rate - eta_min) * (
-                    1 + math.cos(math.pi * opt.warm_epochs / opt.epochs)) / 2
-        else:
-            opt.warmup_to = opt.learning_rate
-
-    # AICITY Dataset class 18
-    opt.n_cls = 18
+    def __iter__(self):
+        self.loader_iter = []
+        for data_loader in self.dataloaders:
+            self.loader_iter.append(iter(data_loader))
+        return self
     
-    return opt
+    def __len__(self):
+        return len(self.dataloaders[0])
+    
+    def __next__(self):
+        out = []
+        for data_iter in self.loader_iter:
+            out.append(next(data_iter)) # may raise StopIteration
+        return tuple(out)
+def set_loader(opt):
+    args = parse_args()
+    crop_method, before_crop_duration = initailizing(args)
+    temporal_transform = TemporalSequentialCrop(before_crop_duration, args.downsample)
+    
+    spatial_transform = spatial_transforms.Compose([
+            spatial_transforms.Scale(args.sample_size),
+            spatial_transforms.CenterCrop(args.sample_size),
 
+            spatial_transforms.RandomRotate(),
+            spatial_transforms.SaltImage(),
+            spatial_transforms.Dropout(),
+            spatial_transforms.ToTensor(args.norm_value),
+            spatial_transforms.Normalize([0], [1])
+        ])
+
+    print("=================================Loading Driving Training Data!=================================")
+    dash_dataset = CLS(root_path=args.root_path,
+                                subset='train',
+                                view='Dashboard',
+                                sample_duration=before_crop_duration,
+                                type='train',
+                                spatial_transform=spatial_transform,
+                                temporal_transform=temporal_transform)
+    dash_loader = DataLoader(
+        dash_dataset,
+        batch_size=args.a_train_batch_size,
+        shuffle=True,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    rear_dataset = CLS(root_path=args.root_path,
+                                subset='train',
+                                view='Rear',
+                                sample_duration=before_crop_duration,
+                                type='train',
+                                spatial_transform=spatial_transform,
+                                temporal_transform=temporal_transform)
+    rear_loader = DataLoader(
+        rear_dataset,
+        batch_size=args.a_train_batch_size,
+        shuffle=True,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    right_dataset = CLS(root_path=args.root_path,
+                                subset='train',
+                                view='Right',
+                                sample_duration=before_crop_duration,
+                                type='train',
+                                spatial_transform=spatial_transform,
+                                temporal_transform=temporal_transform)
+    right_loader = DataLoader(
+        right_dataset,
+        batch_size=args.a_train_batch_size,
+        shuffle=True,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    train_loader = cat_dataloaders([dash_loader, rear_loader, right_loader])
+    print("=================================Loading Train Data!=================================")
+    
+    
+    print("========================================Loading Validation Data========================================")
+    val_spatial_transform = spatial_transforms.Compose([
+        spatial_transforms.Scale(args.sample_size),
+        spatial_transforms.CenterCrop(args.sample_size),
+        spatial_transforms.ToTensor(args.norm_value),
+        spatial_transforms.Normalize([0], [1])
+    ])
+    val_dash = CLS(root_path=args.root_path,
+                        subset='validation',
+                        view='Dashboard',
+                        sample_duration=args.sample_duration,
+                        type=None,
+                        spatial_transform=val_spatial_transform,
+                        )
+    val_rear = CLS(root_path=args.root_path,
+                        subset='validation',
+                        view='Rear',
+                        sample_duration=args.sample_duration,
+                        type=None,
+                        spatial_transform=val_spatial_transform,
+                        )
+    val_right = CLS(root_path=args.root_path,
+                        subset='validation',
+                        view='Right',
+                        sample_duration=args.sample_duration,
+                        type=None,
+                        spatial_transform=val_spatial_transform,
+                        )
+    
+    val_dash_loader = DataLoader(
+        val_dash,
+        batch_size=args.val_batch_size,
+        shuffle=False,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    val_rear_loader = DataLoader(
+        val_rear,
+        batch_size=args.val_batch_size,
+        shuffle=False,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    val_right_loader = DataLoader(
+        val_right,
+        batch_size=args.val_batch_size,
+        shuffle=False,
+        num_workers=args.n_threads,
+        pin_memory=False,
+    )
+    validation_loader = cat_dataloaders([val_dash_loader, val_rear_loader, val_right_loader])
+    num_val_data = val_dash_loader.__len__()
+    num_train_data = int(len(dash_dataset))
+    print(f'val_data len:{num_train_data}')
+    print(f'val_data len:{num_val_data}')
+    
+    return train_loader, validation_loader
 
 def set_model(opt):
     model = Fusion_R3D(dash=R3D_MLP(opt.feature_dim, opt.model_depth, 
@@ -100,40 +180,46 @@ def set_model(opt):
 
     
     
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=0)
     
 
     return model, criterion
 
-
 def train(train_loader, model, criterion, optimizer, epoch, opt):
     """one epoch training"""
-    
+    model.cuda()
+    model.train()
+
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
 
     end = time.time()
-    for idx, (images, labels) in enumerate(train_loader):
+    for idx, (dash, rear, right) in enumerate(train_loader):
         data_time.update(time.time() - end)
+        dash_img, dash_label = dash
+        rear_img, rear_label = rear
+        right_img, right_label = right
         
-        images = images.cuda(non_blocking=True)
-        labels = labels.long().cuda(non_blocking=True)
-        bsz = labels.shape[0]
+        dash_img, dash_label = dash_img.cuda(non_blocking=True), dash_label.cuda(non_blocking=True)
+        rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
+        bsz = right_label.shape[0]
+        
+
         # warm-up learning rate
         warmup_learning_rate(opt, epoch, idx, len(train_loader), optimizer)
         
         # compute loss
-        output = model(images)
+        output = model(dash_img, rear_img, right_img)
+        # dash_label = dash_label.long()
         
-        loss = criterion(output, labels)
-
+        
+        loss = criterion(output, dash_label)
+        
         # update metric
         losses.update(loss.item(), bsz)
-
-        acc1, acc5 = accuracy(output, labels, topk=(1, 5))
-        
+        acc1, acc5 = accuracy(output, dash_label, topk=(1, 5))
         top1.update(acc1[0], bsz)
 
         # SGD
@@ -159,6 +245,7 @@ def train(train_loader, model, criterion, optimizer, epoch, opt):
     return losses.avg, top1.avg
 
 
+
 def validate(val_loader, model, criterion, opt):
     """validation"""
     model.eval()
@@ -169,18 +256,24 @@ def validate(val_loader, model, criterion, opt):
 
     with torch.no_grad():
         end = time.time()
-        for idx, (images, labels) in enumerate(val_loader):
-            images = images.cuda()
-            labels = labels.cuda()
-            bsz = labels.shape[0]
+        for idx, (dash, rear, right) in enumerate(val_loader):
 
+            dash_img, dash_label = dash
+            rear_img, rear_label = rear
+            right_img, right_label = right
+            
+            dash_img, dash_label = dash_img.cuda(non_blocking=True), dash_label.cuda(non_blocking=True)
+            rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
+            bsz = right_label.shape[0]
+            
+            
             # forward
-            output = model(images)
-            loss = criterion(output, labels)
+            output = model(dash_img, rear_img, right_img)
+            loss = criterion(output, dash_label)
 
             # update metric
             losses.update(loss.item(), bsz)
-            acc1, acc5 = accuracy(output, labels, topk=(1, 5))
+            acc1, acc5 = accuracy(output, dash_label, topk=(1, 5))
             top1.update(acc1[0], bsz)
 
             # measure elapsed time
@@ -189,17 +282,19 @@ def validate(val_loader, model, criterion, opt):
 
             if idx % opt.print_freq == 0:
                 print('Test: [{0}/{1}]\t'
-                    'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                    'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
-                    idx, len(val_loader), batch_time=batch_time,
-                    loss=losses, top1=top1))
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Acc@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
+                       idx, len(val_loader), batch_time=batch_time,
+                       loss=losses, top1=top1))
 
     print(' * Acc@1 {top1.avg:.3f}'.format(top1=top1))
     return losses.avg, top1.avg
 
 from opts import parse_args
 from utils.util import adjust_learning_rate_cosine
+from utils.util import Logger
+from copy import deepcopy
 def main():
     best_acc = 0
     opt = parse_args()
@@ -218,6 +313,9 @@ def main():
     model.classifier = torch.nn.Linear(num_ftrs, opt.n_classes)
     
     model = torch.nn.DataParallel(model)
+    logger = Logger(path=os.path.join(opt.log_folder, 'ce_train.log'), 
+                    header=['epoch','epoch','train_loss','learning_rate','val_loss','val_acc' ], resume=opt.log_resume)
+
     # training routine
     for epoch in range(1, opt.epochs + 1):
         adjust_learning_rate_cosine(opt, optimizer, epoch)
@@ -229,11 +327,28 @@ def main():
         time2 = time.time()
         print('Train epoch {}, total time {:.2f}, accuracy:{:.2f}'.format(
             epoch, time2 - time1, acc))
-
+        train_loss = deepcopy(loss)
         # eval for one epoch
         loss, val_acc = validate(val_loader, model, criterion, opt)
+        val_loss = deepcopy(loss)
+        logger.log({'epoch':epoch,
+                    'train_loss':train_loss,
+                    'learning_rate':optimizer.param_groups[0]['lr'],
+                    'val_loss':val_loss,
+                    'val_acc':val_acc})
+        if epoch % opt.save_freq == 0:
+            save_file = os.path.join(opt.save_folder, f'ckpt_epoch_{epoch}.pth')
+            save_model(model, optimizer, opt, epoch, save_file)
+            
         if val_acc > best_acc:
             best_acc = val_acc
+            save_file = os.path.join(opt.save_folder, f'ckpt_epoch_best_{loss:.5f}_{epoch}.pth')
+            save_model(model, optimizer, opt, epoch, save_file)
+
+    # save the last model
+    save_file = os.path.join(
+        opt.save_folder, 'last.pth')
+    save_model(model, optimizer, opt, opt.epochs, save_file)
 
     print('best accuracy: {:.2f}'.format(best_acc))
 

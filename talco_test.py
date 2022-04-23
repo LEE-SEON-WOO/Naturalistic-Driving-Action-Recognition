@@ -109,8 +109,9 @@ def max_k(output, topk=(1,)):
         maxk = max(topk)
         
 
-        _, pred = output.topk(maxk, 1, True, True)
-        return pred.cpu().numpy().reshape(1, -1).tolist()
+        prob, pred = output.topk(maxk, 1, True, True)
+        
+    return prob.cpu().numpy().reshape(-1, 1), pred.cpu().numpy().reshape(-1, 1)
 import os
 from collections import defaultdict
 def test(test_loader, model):
@@ -119,27 +120,95 @@ def test(test_loader, model):
     outputs = defaultdict(list)
     with torch.no_grad():
         for _, (dash, rear, right) in tqdm(enumerate(test_loader)):
+            
             dash_img, inform = dash
             rear_img, _ = rear
             right_img, _ = right
             dash_img = dash_img.cuda(non_blocking=True)
             rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
             # forward
+            
             output = model(dash_img, rear_img, right_img)
             # outputs.append([inform[0][13:],output,inform[1]])
-            max_top1 = max_k(output, topk=(1,))
-            video_id = [int(path.split(os.sep)[-1]) for path in inform[0]]
-            time = inform[1].numpy().tolist()
-            outputs['video_id'].extend(video_id)
-            outputs['activity_id'].extend(max_top1[0])
-            outputs['time'].extend(time)
+            
+            probs, max_top1 = max_k(output, topk=(1,))
+            #video_id = [int(path.split(os.sep)[-1]) for path in inform[0]]
+            #time = inform[1].numpy().tolist()
+            # outputs['video_id'].extend(video_id)
+            
+            # outputs['time'].extend(time)
+            threshold = np.mean(probs)
+            
+            action_tag = np.zeros(max_top1.shape)
+            action_tag[probs >=threshold] = 1
+            
+            activities_idx = []
+            startings = []
+            endings = []
+            for i in range(len(action_tag)):
+                if action_tag[i] ==1:
+                    activities_idx.append(max_top1[i][0])
+                    start = i
+                    end = i+1
+                    startings.append(start)
+                    endings.append(end)
+            
+            outputs['start'].extend(startings)
+            outputs['end'].extend(endings)
+            outputs['activity_id'].extend(activities_idx)
+            
+
 
     os.makedirs('./output', exist_ok=True)
     csv_path = './output/output.csv'
     writer = pd.DataFrame(outputs)
     writer.to_csv(csv_path, sep=' ', index=False, header=None, line_terminator = '\n')
+    
+import math
+import numpy as np
+import pandas as pd
+from sklearn.cluster import KMeans
 
-from test1 import save_aiformat
+def save_aiformat(load_path, save_path):
+    output= np.loadtxt(load_path, delimiter=' ')
+    indx = np.array([i for i in range(output.shape[0])])
+    mask = np.equal(np.roll(output[:,:], -1, axis=0), output[:,:])
+    #output = video, class ,time
+    
+    
+    
+    
+    r_mask = np.logical_and(mask[:, 0], mask[:, 1])
+    out = output[r_mask].astype(int)
+
+    r_n_mask = np.logical_not(r_mask)
+
+    res = np.hstack([(mask[r_n_mask]), output[r_n_mask]]).astype(int)
+    # res = pd.DataFrame(columns=['Equal1','Equal2', index, 'video_ID', 'activityid', 'time'])
+    start_time = 0
+    outputs= []
+    #입력비디오, Class간비교한거(Bool), 인덱스, 비디오아이디, 예측값, 프레임끝번호
+    #print(res[:10])
+    #exit()
+    for item in res:
+        outputs.append([item[3],item[4], int(start_time/30), int((item[5]+15)/30)])
+        if not item[0]: #입력 비디오가 달라졌는지?
+            start_time = 0 #입력 시간이 0부터 시작
+        elif not item[1]: #이상행동 클래스가 달라졌는지?
+            start_time = item[5]+16 #입력 시간이 0부터 시작
+        else:
+            pass
+    
+    
+    np.savetxt(save_path, np.array(outputs).astype(int), delimiter=' ', fmt='%d')
+    
+    df_total = pd.read_csv(save_path, delimiter=' ', header=None)
+    df_total = df_total[df_total[3]!=0]
+    df_total = df_total[df_total[3] - df_total[2] >6]
+    df_total = df_total.drop(columns=['index'])
+    df_total = df_total.sort_values(by=[0, 1])
+    df_total.to_csv('./output/last.txt', sep=' ', index = False, header=None, line_terminator = '\n')
+    
 def main(index, args):
     random.seed(args.manual_seed)
     np.random.seed(args.manual_seed)
@@ -163,13 +232,12 @@ def main(index, args):
     model.load_state_dict(state_dict = modelWeight)
     
     test_loader = set_loader(args)
-
+    
     test(test_loader, model)
     
     
-    #postprocessing('./output/output.csv','./output/processedOutput.csv')
+    # postprocessing('./output/output.csv','./output/processedOutput.csv')
     save_aiformat(load_path='./output/output.csv', save_path='./output/last.txt')
-    
     
 if __name__ == "__main__":
     args = parse_args()

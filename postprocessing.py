@@ -1,11 +1,26 @@
 import pandas as pd
 from scipy import ndimage
-
+import numpy as np
+def smoothing(x, k=3):
+    ''' Applies a mean filter to an input sequence. The k value specifies the window
+    size. window size = 2*k
+    '''
+    l = len(x)
+    s = np.arange(-k, l - k)
+    e = np.arange(k, l + k)
+    s[s < 0] = 0
+    e[e >= l] = l - 1
+    y = np.zeros(x.shape)
+    for i in range(l):
+        y[i] = np.mean(x[s[i]:e[i]], axis=0)
+    return y
 def postprocessing(csvName,savePath):
-    output = pd.read_csv(csvName, header=None)
-    
+    output = pd.read_csv(csvName, header=None).to_numpy()
+    output = smoothing(output)
+    np.savetxt(fname=savePath, X=output, delimiter=' ')
+    return
     for _ in range (3):
-        output[1] = ndimage.median_filter(output[1], size=25,mode='nearest')
+        output[1] = ndimage.median_filter(output[1], size=3,mode='nearest')
 
         first=0
         for video_name in range(1,11):
