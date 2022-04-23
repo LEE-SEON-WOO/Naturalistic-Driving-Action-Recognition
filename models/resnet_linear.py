@@ -39,10 +39,13 @@ class Fusion_R3D(nn.Module):
             
     def forward(self, x_dash, x_rear, x_right):
         #nm = normal, an = anormal
-        _, d_an = self.dash_model(x_dash)
+        d_nm, d_an = self.dash_model(x_dash)
+        d_an = torch.cat([d_nm, d_an], axis=1)
         #Projection(vector) positive, anomaly=negative
-        _, rr_an = self.rr_model(x_rear)
-        _, rt_an = self.rt_model(x_right)
+        r_nm, rr_an = self.rr_model(x_rear)
+        rr_an = torch.cat([r_nm, rr_an], axis=1)
+        rt_nm, rt_an = self.rt_model(x_right)
+        rt_an = torch.cat([rt_nm, rt_an], axis=1)
         x = torch.cat([d_an, rr_an, rt_an], axis=1)
         
         x = x.unsqueeze(dim=1)
