@@ -297,7 +297,8 @@ from utils.util import Logger
 from copy import deepcopy
 def main():
     best_acc = 0
-    opt = parse_args()
+    opt = parse_args(root_path='../A1/newFrame/',
+                    mode='train')
     
     # build data loader
     train_loader, val_loader = set_loader(opt)

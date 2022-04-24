@@ -9,10 +9,10 @@ import ast
 def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth', 
                 n_classes:int=18,
                 n_pretrain_classes:int=1139,
-                n_input_channels:int=1,
+                n_input_channels:int=3,
                 model:str='resnet',
                 model_depth:int=50,
-                conv1_t_size:int=1,
+                conv1_t_size:int=3,
                 conv1_t_stride:int=3,
                 resnet_shortcut:str='B',
                 resnet_widen_factor:float=1.0,
@@ -23,21 +23,23 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                 sample_size=112,
                 output_topk:int=5,
                 sample_duration=16,
+                mode:str='train',
+                root_path:str='../A2_slice/',
                 input_type:str='rgb'):
     parser = argparse.ArgumentParser(description='DAD training on Videos')
     #Train/Test
-    parser.add_argument('--root_path', default='../A1/newFrame/', type=str, help='root path of the dataset')
+    parser.add_argument('--root_path', default=root_path, type=str, help='root path of the dataset')
     # parser.add_argument('--root_path', default='../A2_slice/', type=str, help='root path of the dataset')
-    parser.add_argument('--mode', default='train', type=str, help='train | test(validation)')
+    parser.add_argument('--mode', default=mode, type=str, help='train | test(validation)')
     parser.add_argument('--feature_dim', default=feature_dim, type=int, help='To which dimension will video clip be embedded')
     parser.add_argument('--sample_duration', default=sample_duration, type=int, help='Temporal duration of each video clip')
     parser.add_argument('--sample_size', default=sample_size, type=int, help='Height and width of inputs')
     parser.add_argument('--model_type', default='resnet', type=str, help='so far only resnet')
     parser.add_argument('--shortcut_type', default='B', type=str, help='Shortcut type of resnet (A | B)')
     parser.add_argument('--pre_train_model', default=True, type=ast.literal_eval, help='Whether use pre-trained model')
-    parser.add_argument('--n_train_batch_size', default=64, type=int, help='Batch Size for normal training data')
-    parser.add_argument('--a_train_batch_size', default=64, type=int, help='Batch Size for anormal training data')
-    parser.add_argument('--val_batch_size', default=64, type=int, help='Batch Size for validation data')
+    parser.add_argument('--n_train_batch_size', default=32, type=int, help='Batch Size for normal training data')
+    parser.add_argument('--a_train_batch_size', default=16, type=int, help='Batch Size for anormal training data')
+    parser.add_argument('--val_batch_size', default=32, type=int, help='Batch Size for validation data')
     parser.add_argument('--checkpoint_folder', default='./checkpoints/', type=str, help='folder to store checkpoints')
     parser.add_argument('--log_folder', default='./logs/', type=str, help='folder to store log files')
     parser.add_argument('--log_resume', default=False, type=ast.literal_eval, help='True|False: a flag controlling whether to create a new log file')
@@ -85,8 +87,7 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                         default=resnet_widen_factor,
                         type=float,
                         help='The number of feature maps of resnet is multiplied by this value')
-    parser.add_argument(
-                        '--n_classes',
+    parser.add_argument('--n_classes',
                         default=n_classes,
                         type=int,
                         help='Number of classes (activitynet: 200, kinetics: 400 or 600, ucf101: 101, hmdb51: 51)')

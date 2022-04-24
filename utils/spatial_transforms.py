@@ -1,6 +1,7 @@
 import random
 import numbers
 import collections
+from matplotlib import image
 import numpy as np
 import torch
 import torchvision
@@ -11,7 +12,7 @@ try:
     import accimage
 except ImportError:
     accimage = None
-
+import imgaug.augmenters as iaa
 
 class Compose(object):
     """Composes several transforms together.
@@ -42,9 +43,9 @@ class ToTensor(object):
     [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0].
     """
 
-    def __init__(self, norm_value=255):
+    def __init__(self, norm_value=255, t_type='train'):
         self.norm_value = norm_value
-
+        self.t_type = t_type
     def __call__(self, pic):
         """
         Args:
@@ -73,7 +74,16 @@ class ToTensor(object):
         elif pic.mode == 'I;16':
             img = torch.from_numpy(np.array(pic, np.int16, copy=False))
         else:
-            img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
+            seq = iaa.Sequential([
+                iaa.Fliplr(p=0.5),
+                iaa.Rotate((-5, 5))
+            ]) # !
+            
+            if self.t_type == 'train':
+                img = torch.tensor(seq(image=np.array(pic)))
+            else:
+                img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
+            
         # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK
         if pic.mode == 'YCbCr':
             nchannel = 3
@@ -81,10 +91,16 @@ class ToTensor(object):
             nchannel = 1
         else:
             nchannel = len(pic.mode)
-        img = img.view(pic.size[1], pic.size[0], nchannel)
+        if self.t_type == 'train':
+            pass
+        else:
+            img = img.view(pic.size[1], pic.size[0], nchannel)
+        
         # put it from HWC to CHW format
         # yikes, this transpose takes 80% of the loading time/CPU
         img = img.transpose(0, 1).transpose(0, 2).contiguous()
+        
+        
         if isinstance(img, torch.ByteTensor):
             return img.float().div(self.norm_value)
         else:
@@ -92,8 +108,6 @@ class ToTensor(object):
 
     def randomize_parameters(self):
         pass
-
-
 class Normalize(object):
     """Normalize an tensor image with mean and standard deviation.
     Given mean: (R, G, B) and std: (R, G, B),
@@ -104,7 +118,6 @@ class Normalize(object):
         std (sequence): Sequence of standard deviations for R, G, B channels
             respecitvely.
     """
-
     def __init__(self, mean, std):
         self.mean = mean
         self.std = std
@@ -123,7 +136,6 @@ class Normalize(object):
 
     def randomize_parameters(self):
         pass
-
 
 class Scale(object):
     """Rescale the input PIL.Image to the given size.
@@ -369,13 +381,6 @@ class MultiScaleRandomCrop(object):
         #self.scale = 1
         self.tl_x = random.random()
         self.tl_y = random.random()
-
-
-
-
-
-
-
 
 class SpatialElasticDisplacement(object):
 

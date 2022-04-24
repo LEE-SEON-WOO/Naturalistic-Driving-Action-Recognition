@@ -189,12 +189,12 @@ def _construct_depth_model(base_model):
     conv_layer = modules[first_conv_idx]
     container = modules[first_conv_idx - 1]
     # modify parameters, assume the first blob contains the convolution kernels
-    motion_length = 1
+    motion_length = 3
     params = [x.clone() for x in conv_layer.parameters()]
     kernel_size = params[0].size()
     new_kernel_size = kernel_size[:1] + (1*motion_length,  ) + kernel_size[2:]
     new_kernels = params[0].data.mean(dim=1, keepdim=True).expand(new_kernel_size).contiguous()
-    new_conv = nn.Conv3d(1, conv_layer.out_channels, conv_layer.kernel_size, conv_layer.stride,
+    new_conv = nn.Conv3d(3, conv_layer.out_channels, conv_layer.kernel_size, conv_layer.stride,
                          conv_layer.padding, bias=True if len(params) == 2 else False)
     new_conv.weight.data = new_kernels
     if len(params) == 2:
@@ -205,9 +205,6 @@ def _construct_depth_model(base_model):
     setattr(container, layer_name, new_conv)
     return base_model
 
-
-import argparse
-from pathlib import Path
 
 """
 def parse_args(pretrain_path:str='./checkpoints/best_model_resnet_Dashboard.pth', 

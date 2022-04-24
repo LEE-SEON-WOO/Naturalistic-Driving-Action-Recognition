@@ -23,7 +23,7 @@ class Compose(object):
 
 class LoopPadding(object):
 
-    def __init__(self, size, downsample):
+    def __init__(self, size, downsample=2):
         self.size = size
         self.downsample = downsample
 
@@ -39,7 +39,7 @@ class LoopPadding(object):
 
         selected_frames = [out[i] for i in range(0, clip_duration, self.downsample)]
 
-        return out
+        return selected_frames
 
 
 class TemporalBeginCrop(object):
@@ -163,7 +163,8 @@ class TemporalSelectCrop(object):
 
     def __call__(self, frame_indices):
         vid_duration = len(frame_indices)
-
+        print(frame_indices)
+        exit()
         outs = []
         if (self.clip_duration + self.clip_interval) * self.number_clips - self.clip_interval <= vid_duration:
             center_index = len(frame_indices) // 2
@@ -193,6 +194,43 @@ class TemporalSelectCrop(object):
             total_frames.append(frames)
 
         return total_frames
+
+
+class Downsample(object):
+    """
+    Temporally downsample a video by deleting some of its frames.
+    Args:
+        ratio (float): Downsampling ratio in [0.0 <= ratio <= 1.0].
+    """
+    def __init__(self , ratio=1.0):
+        if ratio < 0.0 or ratio > 1.0:
+            raise TypeError('ratio should be in [0.0 <= ratio <= 1.0]. ' +
+                            'Please use upsampling for ratio > 1.0')
+        self.ratio = ratio
+
+    def __call__(self, clip):
+        nb_return_frame = np.floor(self.ratio * len(clip)).astype(int)
+        return_ind = [int(i) for i in np.linspace(1, len(clip), num=nb_return_frame)]
+
+        return [clip[i-1] for i in return_ind]
+
+
+class TemporalFit(object):
+    """
+    Temporally fits a video to a given frame size by
+    downsampling or upsampling.
+    Args:
+        size (int): Frame size to fit the video.
+    """
+    def __init__(self, size):
+        if size < 0:
+            raise TypeError('size should be positive')
+        self.size = size
+
+    def __call__(self, clip):
+        return_ind = [int(i) for i in np.linspace(1, len(clip), num=self.size)]
+
+        return [clip[i-1] for i in return_ind]
 
 
 class TemporalBeginEndCrop(object):
@@ -276,8 +314,20 @@ class TemporalSequentialCrop(object):
         help = []
         step = self.downsample
         for i in range(0, self.duration, step):
+            
             help.append(frame_indices[i])
         return help
+
+class TemporalCasCadeSampling(object):
+    def __init__(self, duration=32, downsample= 2):
+        self.duration = duration
+        self.downsample = downsample
+    def __call__(self, frame_indices):
+        start = 0 
+        end = self.duration-1
+        rand_idx = np.sort(np.random.choice(range(1, end), 14, replace=True)).tolist()
+        rand_idx = [start] + rand_idx + [end]
+        return [frame_indices[i] for i in rand_idx]
 
 class TemporalEvenCrop(object):
 
@@ -335,18 +385,8 @@ class TemporalSubsampling(object):
         self.stride = stride
 
     def __call__(self, frame_indices):
-        return frame_indices[::self.stride]
-
-
-class TemporalSubsampling(object):
-
-    def __init__(self, stride):#random sample
-        self.stride = stride
-
-    def __call__(self, frame_indices):
+        
         return frame_indices[::self.stride]
     
 
-
-
-
+#https://github.com/okankop/vidaug/blob/master/vidaug/augmentors/temporal.py

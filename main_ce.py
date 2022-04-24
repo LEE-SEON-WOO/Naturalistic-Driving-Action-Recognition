@@ -293,7 +293,8 @@ from models.resnet_linear import Fusion_R3D, R3D_MLP
 from utils.util import Logger
 def main():
     best_acc = 0
-    opt = parse_args()
+    opt = parse_args(root_path='../A1/newFrame/',
+                    mode='train')
     
     train_loader, val_loader = set_loader(opt)
     # build model and criterion

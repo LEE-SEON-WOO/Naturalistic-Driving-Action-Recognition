@@ -36,8 +36,8 @@ class cat_dataloaders():
             out.append(next(data_iter)) # may raise StopIteration
         return tuple(out)
 
-def set_model(opt):
-    model = torch.load('./checkpoints/ckpt_epoch_best_2.14747_4.pth')
+def set_model(ckpt_path):
+    model = torch.load(ckpt_path)
     state_dict = model['model']
     criterion =''
     return state_dict, criterion
@@ -128,26 +128,29 @@ def test(test_loader, model):
             rear_img, right_img = rear_img.cuda(non_blocking=True), right_img.cuda(non_blocking=True)
             # forward
             
+            # input shape is (BS, 1, 16, 112, 112) 거진 0.5초당 한번 계산
             output = model(dash_img, rear_img, right_img)
-            # outputs.append([inform[0][13:],output,inform[1]])
+            # output shape is  (BS 18)
             
-            probs, max_top1 = max_k(output, topk=(1,))
-            #video_id = [int(path.split(os.sep)[-1]) for path in inform[0]]
-            #time = inform[1].numpy().tolist()
-            # outputs['video_id'].extend(video_id)
+            probs, max_top1 = max_k(output, topk=(1,)) 
             
-            # outputs['time'].extend(time)
-            threshold = np.mean(probs)
+            # 확률값들이랑 가장 큰값 하나를 구함
+            threshold = np.mean(output.cpu().numpy(), axis=1)
+            # 확률값 평균을 내서 임계치를 구함
             
-            action_tag = np.zeros(max_top1.shape)
-            action_tag[probs >=threshold] = 1
-            
+            action_tag = np.zeros(max_top1.shape) #batch size만큼 zero matrix 할당
+            probs = probs.reshape(-1)
+            threshold = threshold.reshape(-1)
+            max_top1 = max_top1.reshape(-1)
+            action_tag[probs >=threshold] = 1 # 임계치보다 큰 값들을 1으로 채움
+            #(bs, 1)
             activities_idx = []
             startings = []
             endings = []
-            for i in range(len(action_tag)):
-                if action_tag[i] ==1:
-                    activities_idx.append(max_top1[i][0])
+            
+            for i in range(len(action_tag)): #bs만큼 돌면서
+                if action_tag[i] ==1: #만약 1이면
+                    activities_idx.append(max_top1[i])
                     start = i
                     end = i+1
                     startings.append(start)
@@ -161,25 +164,21 @@ def test(test_loader, model):
 
     os.makedirs('./output', exist_ok=True)
     csv_path = './output/output.csv'
-    writer = pd.DataFrame(outputs)
+    writer = pd.DataFrame(outputs) # 'start' 'end'  'activity_id'
     writer.to_csv(csv_path, sep=' ', index=False, header=None, line_terminator = '\n')
     
 import math
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
 
 def save_aiformat(load_path, save_path):
     output= np.loadtxt(load_path, delimiter=' ')
-    indx = np.array([i for i in range(output.shape[0])])
-    mask = np.equal(np.roll(output[:,:], -1, axis=0), output[:,:])
+    # indx = np.array([i for i in range(output.shape[0])])
+    mask = np.equal(np.roll(output[:,:], -1, axis=0), output[:,:]) #달라졌는지 체크
     #output = video, class ,time
     
-    
-    
-    
     r_mask = np.logical_and(mask[:, 0], mask[:, 1])
-    out = output[r_mask].astype(int)
+    # out = output[r_mask].astype(int)
 
     r_n_mask = np.logical_not(r_mask)
 
@@ -203,20 +202,19 @@ def save_aiformat(load_path, save_path):
     np.savetxt(save_path, np.array(outputs).astype(int), delimiter=' ', fmt='%d')
     
     df_total = pd.read_csv(save_path, delimiter=' ', header=None)
-    df_total = df_total[df_total[3]!=0]
+    df_total = df_total[df_total[2]!=0] # 0 클래스인것 제거
     df_total = df_total[df_total[3] - df_total[2] >6]
-    df_total = df_total.drop(columns=['index'])
     df_total = df_total.sort_values(by=[0, 1])
     df_total.to_csv('./output/last.txt', sep=' ', index = False, header=None, line_terminator = '\n')
     
-def main(index, args):
+def main(index, args, ckpt_path):
     random.seed(args.manual_seed)
     np.random.seed(args.manual_seed)
     torch.manual_seed(args.manual_seed)
     
     if index >= 0 and args.device.type == 'cuda':
         args.device = torch.device(f'cuda:{index}')
-    opt = parse_args()
+    opt = args
     
     model = Fusion_R3D(dash=R3D_MLP(opt.feature_dim, opt.model_depth, 
                         opt=parse_args(pretrain_path='./checkpoints/best_model_resnet_Dashboard.pth')),
@@ -227,7 +225,7 @@ def main(index, args):
                         with_classifier=True)
     model = torch.nn.DataParallel(model)
     
-    modelWeight, _ = set_model(opt)
+    modelWeight, _ = set_model(ckpt_path)
     
     model.load_state_dict(state_dict = modelWeight)
     
@@ -240,5 +238,6 @@ def main(index, args):
     save_aiformat(load_path='./output/output.csv', save_path='./output/last.txt')
     
 if __name__ == "__main__":
-    args = parse_args()
-    main(-1,args)
+    args = parse_args(root_path='../A2_slice/',
+                    mode='test')
+    main(-1,args, ckpt_path='./checkpoints/ckpt_epoch_best_2.37050_1.pth')

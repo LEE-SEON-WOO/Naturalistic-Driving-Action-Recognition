@@ -1,5 +1,7 @@
 import torch
 from utils.temporal_transforms import TemporalSequentialCrop
+from utils.temporal_transforms import TemporalCasCadeSampling
+from utils.group import OneOf
 from utils import spatial_transforms
 from data.train_dataset import DAC
 from torch.utils.data import DataLoader, Subset
@@ -90,35 +92,24 @@ def train_epoch(train_normal_loader, train_anormal_loader, model, nce_average, c
     return memory_bank, losses.avg
 
 
-
-def train(args, before_crop_duration, crop_method):
-    temporal_transform = TemporalSequentialCrop(before_crop_duration, args.downsample)
-                                                                                        #각 데이터에 맞는 transform 시행 -> 우리는 if문 없애고 rgb에 맞게끔
-    if args.view == 'Dashboard' or args.view == 'Right':
-
-        spatial_transform = spatial_transforms.Compose([
-            crop_method,
-
-            spatial_transforms.RandomRotate(),
-            spatial_transforms.SaltImage(),
-            spatial_transforms.Dropout(),
-            spatial_transforms.ToTensor(args.norm_value),
-            spatial_transforms.Normalize([0], [1])
-        ])
-        
-    elif args.view == 'Rear' or args.view == 'Dashboard':
-        spatial_transform = spatial_transforms.Compose([
-            spatial_transforms.RandomHorizontalFlip(),
+def train(args):
+    args.scales = [args.initial_scales] # 1.0
+    for i in range(1, args.n_scales): # 3
+        args.scales.append(args.scales[-1] * args.scale_step) # 1 * 0.9
+    
+    
+    before_crop_duration = int(args.sample_duration * args.downsample) #sample_duration=16, downsample=2
+    temporal_transform = OneOf([TemporalSequentialCrop(duration = before_crop_duration, 
+                                                downsample = args.downsample),
+                                TemporalCasCadeSampling(duration=before_crop_duration,
+                                                        downsample = args.downsample) #Our Contribution!!
+                                ])#각 데이터에 맞는 transform 시행 -> 우리는 if문 없애고 rgb에 맞게끔
+    
+    
+    spatial_transform = spatial_transforms.Compose([
             spatial_transforms.Scale(args.sample_size),
-            spatial_transforms.CenterCrop(args.sample_size),
-
-            spatial_transforms.RandomRotate(),
-            spatial_transforms.SaltImage(),
-            spatial_transforms.Dropout(),
-            spatial_transforms.ToTensor(args.norm_value),
-            spatial_transforms.Normalize([0], [1])
-        ])
-
+            spatial_transforms.ToTensor(args.norm_value, args.mode),
+            spatial_transforms.Normalize([0], [1])])
     print("=================================Loading Driving Training Data!=================================")
     training_anormal_data = DAC(root_path=args.root_path,
                                 subset='train',
@@ -164,8 +155,8 @@ def train(args, before_crop_duration, crop_method):
     print("========================================Loading Validation Data========================================")
     val_spatial_transform = spatial_transforms.Compose([
         spatial_transforms.Scale(args.sample_size),
-        spatial_transforms.CenterCrop(args.sample_size),
-        spatial_transforms.ToTensor(args.norm_value),
+        spatial_transforms.ToTensor(args.norm_value, 
+                                    args.mode),
         spatial_transforms.Normalize([0], [1])
     ])
     validation_data = DAC(root_path=args.root_path,
@@ -203,7 +194,7 @@ def train(args, before_crop_duration, crop_method):
                         input_type='rgb',
                         n_classes=1139,
                         n_pretrain_classes=1139,
-                        n_input_channels=1,
+                        n_input_channels=3,
                         conv1_t_size=7,
                         conv1_t_stride=1,
                         resnet_shortcut='B',

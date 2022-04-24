@@ -1,11 +1,9 @@
+import numpy as np
 import torch
 import torch.utils.data as data
 from PIL import Image
 import os
-import csv
 import pandas as pd
-import glob
-from glob import glob
 from sklearn.model_selection import train_test_split
 def pil_loader(path):
     """
@@ -15,8 +13,8 @@ def pil_loader(path):
     """
     with open(path, 'rb') as f:
         with Image.open(f) as img:
-            #return img.convert('RGB')
-            return img.convert('L')
+            return img.convert('RGB')
+            # return img.convert('L')
 
 def accimage_loader(path):
     """
@@ -216,14 +214,16 @@ class DAC(data.Dataset):
             video_path = self.data[index]['video']
             frame_indices = self.data[index]['frame_indices']
             #print(frame_indices)
-            if self.temporal_transform is not None:
+            if self.temporal_transform:
                 frame_indices = self.temporal_transform(frame_indices)
             #print(frame_indices)
             clip = self.loader(video_path, frame_indices)
 
             self.spatial_transform.randomize_parameters()
             clip = [self.spatial_transform(img) for img in clip]
-            clip = torch.stack(clip, 0).permute(1, 0, 2, 3)     #data with shape (channels, timesteps, height, width)
+            
+            clip = torch.stack(clip, dim=0).permute(1, 0, 2, 3)     #data with shape (channels, timesteps, height, width)
+            
             return clip, index
         elif self.subset == 'validation':
             video_path = self.data[index]['video']
@@ -234,6 +234,7 @@ class DAC(data.Dataset):
             
             self.spatial_transform.randomize_parameters()
             clip = [self.spatial_transform(img) for img in clip]
+            
             clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
 
             return clip, ground_truth
