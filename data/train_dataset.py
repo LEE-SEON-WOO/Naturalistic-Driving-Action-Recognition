@@ -218,8 +218,10 @@ class DAC(data.Dataset):
                 frame_indices = self.temporal_transform(frame_indices)
             #print(frame_indices)
             clip = self.loader(video_path, frame_indices)
-
-            self.spatial_transform.randomize_parameters()
+            try:
+                self.spatial_transform.randomize_parameters()
+            except:
+                pass
             clip = [self.spatial_transform(img) for img in clip]
             
             clip = torch.stack(clip, dim=0).permute(1, 0, 2, 3)     #data with shape (channels, timesteps, height, width)
@@ -231,8 +233,10 @@ class DAC(data.Dataset):
             frame_indices = self.data[index]['frame_indices']
 
             clip = self.loader(video_path, frame_indices)
-            
-            self.spatial_transform.randomize_parameters()
+            try:
+                self.spatial_transform.randomize_parameters()
+            except:
+                pass
             clip = [self.spatial_transform(img) for img in clip]
             
             clip = torch.stack(clip, 0).permute(1, 0, 2, 3)

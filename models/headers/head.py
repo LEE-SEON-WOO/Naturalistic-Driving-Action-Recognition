@@ -33,6 +33,4 @@ class ProjectionHead(nn.Module):
                 m.bias.data.fill_(0.01)
 
     def forward(self, x):
-        x = self.hidden(x)
-        x = F.normalize(x, p=2, dim=1)
-        return x
+        return self.hidden(x)

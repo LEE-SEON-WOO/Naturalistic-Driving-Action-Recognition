@@ -99,7 +99,8 @@ def train(args):
     spatial_transform = spatial_transforms.Compose([
             spatial_transforms.Scale(args.sample_size),
             spatial_transforms.ToTensor(args.norm_value, args.mode),
-            spatial_transforms.Normalize([0], [1])])
+            spatial_transforms.Normalize(mean=[0.3685, 0.3685, 0.3683],  #Right
+                                        std=[0.2700, 0.2700, 0.2699])])
     print("=================================Loading Driving Training Data!=================================")
     training_anormal_data = DAC(root_path=args.root_path,
                                 subset='train',
@@ -170,28 +171,11 @@ def train(args):
     print(f'len_neg: {len_neg}')
     print(f'len_pos: {len_pos}')
     print(f'val_data len:{num_val_data}')
-    
+    import copy
     print("============================================Generating Model============================================")
     if args.resume_path == '':
         # ===============generate new model or pre-trained model===============
-        from opts import parse_args
-        opt=parse_args(pretrain_path='./pretrained/r3d50_KMS_200ep.pth', 
-                        model='resnet',
-                        model_depth=args.model_depth,
-                        manual_seed=1,
-                        output_topk=5,
-                        input_type='rgb',
-                        n_classes=1139,
-                        n_pretrain_classes=1139,
-                        n_input_channels=3,
-                        conv1_t_size=7,
-                        conv1_t_stride=1,
-                        resnet_shortcut='B',
-                        resnet_widen_factor=1.0,
-                        wide_resnet_k=2,
-                        resnext_cardinality=32,
-                        sample_size=112,
-                        sample_duration=16)
+        opt = copy.deepcopy(args)
         
         model = R3D_MLP(feature_dim=args.feature_dim,model_depth=args.model_depth, opt=opt)
         model = make_data_parallel(model, opt.distributed, device='cuda')

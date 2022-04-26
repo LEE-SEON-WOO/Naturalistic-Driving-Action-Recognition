@@ -23,8 +23,8 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                 sample_size=112,
                 output_topk:int=5,
                 sample_duration=16,
-                mode:str='test',
-                root_path:str='../A2_slice/',
+                mode:str='train',
+                root_path:str='../A1/newFrame',
                 input_type:str='rgb'):
     parser = argparse.ArgumentParser(description='DAD training on Videos')
     #Train/Test
