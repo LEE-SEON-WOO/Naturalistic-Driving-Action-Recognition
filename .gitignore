@@ -135,3 +135,5 @@ data/__pycache__
 checkpoints/
 SEONWOO_checkpoints/
 output/
+score/*
+score/

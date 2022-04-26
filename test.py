@@ -35,15 +35,15 @@ def test(args):
     model_dashboard.load_state_dict(resume_checkpoint_dashboard['state_dict'], strict=False)
     model_rear.load_state_dict(resume_checkpoint_rear['state_dict'], strict=False)
     model_right.load_state_dict(resume_checkpoint_right['state_dict'], strict=False)
-        
+
     model_dashboard.eval()
     model_rear.eval()
     model_right.eval()
 
     val_spatial_transform = spatial_transforms.Compose([
         spatial_transforms.Scale(args.sample_size),
-        spatial_transforms.CenterCrop(args.sample_size),
-        spatial_transforms.ToTensor(args.norm_value),
+        # spatial_transforms.CenterCrop(args.sample_size),
+        spatial_transforms.ToTensor(args.norm_value, args.mode),
         spatial_transforms.Normalize([0], [1])])
 
     print("========================================Loading Test Data========================================")  # Test 데이타 수정 필요한 부분
@@ -179,28 +179,18 @@ def test(args):
                                             args.use_cuda)
     np.save(os.path.join(args.normvec_folder, 'normal_vec_right.npy'), normal_vec_right.cpu().numpy())
 
-    cal_score(model_dashboard, model_rear, model_right, 
+    score_hashmap = cal_score(model_dashboard, model_rear, model_right, 
                 normal_vec_dashboard, normal_vec_rear, normal_vec_right, 
                 test_loader_dashboard, test_loader_rear, test_loader_right, 
                 args.score_folder, args.use_cuda)
-
-    gt = get_fusion_label(os.path.join(args.root_path, 'LABEL.csv'))
-
-
-    hashmap = {'Dashboard': 'dashboard',
-                'Rear': 'rear',
-                'Right': 'right',
-                
-                'fusion_Dashboard_Right': 'dashboard+right',
-                'fusion_Dashboard_Rear': 'dash+rear',
-                'fusion_Rear_Right': 'rear+right',
-                
-                'fusion_all': 'dash+rear+right'
-                
-                }
-
-    for mode, value in hashmap.items():
+    
+    # gt = get_fusion_label(os.path.join(args.root_path, 'LABEL.csv'))
+    gt = np.load(os.path.join(args.score_folder, 'label_list.npy'))
+    gt = np.where(gt>0, 1, 0)
+    for mode, value in score_hashmap.items():
         print(mode, value)
+        if mode == 'Label':
+            continue
         score = get_score(args.score_folder, mode)
         best_acc, best_threshold, AUC = evaluate(score, gt, False)
         print(

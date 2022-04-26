@@ -13,7 +13,8 @@ def pil_loader(path):
     """
     with open(path, 'rb') as f:
         with Image.open(f) as img:
-            return img.convert('L')
+            # return img.convert('L')
+            return img.convert('RGB')
 
 def accimage_loader(path):
     """

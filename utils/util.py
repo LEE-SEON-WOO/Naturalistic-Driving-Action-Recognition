@@ -205,7 +205,7 @@ def get_normal_vector(model, train_normal_loader_for_test, cal_vec_batch_size, f
     for batch, (normal_data, idx) in enumerate(train_normal_loader_for_test):
         if use_cuda:
             normal_data = normal_data.cuda()
-        _, outputs = model(normal_data)
+        _, outputs = model(normal_data) #(bs, 128), (bs, 2048)
         outputs = outputs.detach()
         normal_vec = (torch.sum(outputs, dim=0) + normal_vec * batch * cal_vec_batch_size) / (
                 (batch + 1) * cal_vec_batch_size)
@@ -236,41 +236,53 @@ def cal_score(model_dashboard, model_rear, model_right, normal_vec_dashboard, no
             data3[0] = data3[0].cuda()
             data3[1] = data3[1].cuda()
 
-
+        
         assert torch.sum(data1[1] == data2[1]) == torch.sum(data2[1] == data3[1]) == data1[1].size(0)
 
         out_1 = model_dashboard(data1[0])[1].detach()
         out_2 = model_rear(data2[0])[1].detach()
         out_3 = model_right(data3[0])[1].detach()
         
-
         sim_1 = torch.mm(out_1, normal_vec_dashboard.t())
         sim_2 = torch.mm(out_2, normal_vec_rear.t())
         sim_3 = torch.mm(out_3, normal_vec_right.t())
         
-        sim = (sim_1 + sim_2 + sim_3 ) / 4
+        sim = (sim_1 + sim_2 + sim_3 ) / 3
 
         sim_list = torch.cat((sim_list, sim.squeeze().cpu()))
         label_list = torch.cat((label_list, data1[1].squeeze().cpu()))
+        
         sim_1_list = torch.cat((sim_1_list, sim_1.squeeze().cpu()))
         sim_2_list = torch.cat((sim_2_list, sim_2.squeeze().cpu()))
         sim_3_list = torch.cat((sim_3_list, sim_3.squeeze().cpu()))
-        print(f'/r valuating: Batch {batch + 1} / {total_batch}', end='')
+        
+        print(f'\r Evaluating: Batch {batch + 1} / {total_batch}', end='')
 
     np.save(os.path.join(score_folder, 'score_dashboard.npy'), sim_1_list.numpy())
     print('score_dashboard.npy is saved')
     np.save(os.path.join(score_folder, 'score_rear.npy'), sim_2_list.numpy())
     print('score_rear.npy is saved')
     np.save(os.path.join(score_folder, 'score_right.npy'), sim_3_list.numpy())
+    print('fusion.npy is saved')
+    np.save(os.path.join(score_folder, 'score_fusion.npy'), sim_list.numpy())
     print('score_right.npy is saved')
-
+    np.save(os.path.join(score_folder, 'label_list.npy'), label_list.numpy())
+    print('label_list.npy is saved')
+    score_hashmap = {
+        'Dashboard' : sim_1_list.numpy(),
+        'Rear': sim_2_list.numpy(),
+        'Right' : sim_3_list.numpy(),
+        'Fusion' : sim_list.numpy(),
+        'Label' :  label_list.numpy()
+    }
+    return score_hashmap
 
 def get_score(score_folder, mode):
     """
     !!!Be used only when scores exist!!!
     Get the corresponding scores according to requiements
     :param score_folder: the folder where the scores are saved
-    :param mode: Dashboard | Rear | Right | Rear | fusion_Dashboard | fusion_Rear | fusion_Right | fusion_all
+    :param mode: Dashboard | Rear | Right | Rear | Fusion
     :return: the corresponding scores according to requirements
     """
     if mode == 'Dashboard':
@@ -279,22 +291,7 @@ def get_score(score_folder, mode):
         score = np.load(os.path.join(score_folder,'score_rear.npy'))
     elif mode == 'Right':
         score = np.load(os.path.join(score_folder,'score_right.npy'))
-    elif mode == 'fusion_Dashboard_Right':
-        score1 = np.load(os.path.join(score_folder, 'score_dashboard.npy'))
-        score2 = np.load(os.path.join(score_folder, 'score_right.npy'))
-        score = np.mean((score1, score2), axis = 0)
-    elif mode == 'fusion_Dashboard_Rear':
-        score3 = np.load(os.path.join(score_folder, 'score_dashboard.npy'))
-        score4 = np.load(os.path.join(score_folder, 'score_rear.npy'))
-        score = np.mean((score3, score4), axis=0)
-    elif mode == 'fusion_Rear_Right':
-        score1 = np.load(os.path.join(score_folder, 'score_right.npy'))
-        score3 = np.load(os.path.join(score_folder, 'score_rear.npy'))
-        score = np.mean((score1, score3), axis=0)
-    elif mode == 'fusion_all':
-        score1 = np.load(os.path.join(score_folder, 'score_dashboard.npy'))
-        score2 = np.load(os.path.join(score_folder, 'score_rear.npy'))
-        score3 = np.load(os.path.join(score_folder, 'score_right.npy'))
-        score = np.mean((score1, score2, score3), axis=0)
+    elif mode == 'Fusion':
+        score = np.load(os.path.join(score_folder, 'score_fusion.npy'))
 
     return score

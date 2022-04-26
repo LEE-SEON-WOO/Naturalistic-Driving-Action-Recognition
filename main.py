@@ -43,8 +43,7 @@ import torch.distributed as dist
 if __name__ == '__main__':
     print("Initializing..")
     from opts import parse_args
-    args = parse_args(root_path='../A1/newFrame/',
-                    mode='train')
+    args = parse_args(root_path='../A1/newFrame/')
     args.device = torch.device('cuda' if args.use_cuda else 'cpu')
     if args.use_cuda:
         cudnn.benchmark = True

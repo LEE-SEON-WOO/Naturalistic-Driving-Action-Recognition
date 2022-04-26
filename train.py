@@ -1,4 +1,3 @@
-import torch
 from utils.temporal_transforms import TemporalSequentialCrop
 from utils.temporal_transforms import TemporalCasCadeSampling
 from utils.group import OneOf
@@ -8,22 +7,13 @@ from torch.utils.data import DataLoader, Subset
 import numpy as np
 from loss.NCEAverage import NCEAverage
 from loss.NCECriterion import NCECriterion
-import os
+import os, torch
 import torch.backends.cudnn as cudnn
-
-
-from utils.util import adjust_learning_rate, \
-                        get_fusion_label, Logger, \
-                        l2_normalize, post_process, \
-                        get_score, evaluate
-
+from utils.util import adjust_learning_rate, Logger, l2_normalize
 from utils.utils import AverageMeter, split_acc_diff_threshold
 from models.prop_model import R3D_MLP, make_data_parallel
 from tqdm import tqdm
-
 from models.prop_model import make_data_parallel
-
-
 
 def train_epoch(train_normal_loader, train_anormal_loader, model, nce_average, criterion, optimizer, epoch, args,
           batch_logger, epoch_logger, memory_bank=None):
@@ -121,7 +111,6 @@ def train(args):
 
     training_anormal_size = int(len(training_anormal_data) * args.a_split_ratio)
     training_anormal_data = Subset(training_anormal_data, np.arange(training_anormal_size))
-    
     
     train_anormal_loader = DataLoader(
         training_anormal_data,

@@ -74,12 +74,12 @@ class ToTensor(object):
         elif pic.mode == 'I;16':
             img = torch.from_numpy(np.array(pic, np.int16, copy=False))
         else:
-            seq = iaa.Sequential([
-                iaa.Fliplr(p=0.5),
-                iaa.Rotate((-5, 5))
-            ]) # !
             
             if self.t_type == 'train':
+                seq = iaa.Sequential([
+                    iaa.Fliplr(p=0.5),
+                    iaa.Rotate((-5, 5))
+                ]) # !
                 img = torch.tensor(seq(image=np.array(pic)))
             else:
                 img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))

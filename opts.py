@@ -12,8 +12,8 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                 n_input_channels:int=3,
                 model:str='resnet',
                 model_depth:int=50,
-                conv1_t_size:int=3,
-                conv1_t_stride:int=3,
+                conv1_t_size:int=7,
+                conv1_t_stride:int=1,
                 resnet_shortcut:str='B',
                 resnet_widen_factor:float=1.0,
                 wide_resnet_k:int=2,
@@ -23,7 +23,7 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                 sample_size=112,
                 output_topk:int=5,
                 sample_duration=16,
-                mode:str='train',
+                mode:str='test',
                 root_path:str='../A2_slice/',
                 input_type:str='rgb'):
     parser = argparse.ArgumentParser(description='DAD training on Videos')
@@ -124,10 +124,10 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
                         type=int,
                         help='Top-k scores are saved in json file.')
     #Related Model(Hyperparameter)
-    parser.add_argument('--view', default='Dashboard', type=str, help='Dashboard | Rear | Right')
+    parser.add_argument('--view', default='Right', type=str, help='Dashboard | Rear | Right')
     # optimization
     parser.add_argument('--learning_rate', type=float, default=0.2, help='learning rate') #0.001 ->0.2
-    parser.add_argument('--lr_decay_epochs', type=str, default='150,200,250',
+    parser.add_argument('--lr_decay_epochs', type=str, default='150,200,250',  
                         help='where to decay lr, can be a list')
     #parser.add_argument('--learning_rate', default=0.001, type=float, help='Initial learning rate (divided by 10 while training by lr scheduler)')
     parser.add_argument('--momentum', default=0.9, type=float, help='Momentum')
