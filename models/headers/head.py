@@ -1,3 +1,4 @@
+from matplotlib.colors import Normalize
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -16,13 +17,20 @@ class ProjectionHead(nn.Module):
         self.head = head
         depth = {18:(512, 256), 50:(2048, 256), 101:(2048, 256)}
         if head=='linear':
-            self.hidden = nn.Linear(*depth[model_depth])
+            dim_in = depth[model_depth][0]
+            self.hidden = nn.Sequential(
+                nn.Linear(dim_in, dim_in),
+                nn.ReLU(inplace=True),
+                nn.Linear(dim_in, output_dim),
+                nn.Sigmoid()
+            )
         elif head=='mlp':
             dim_in = depth[model_depth][0]
             self.hidden = nn.Sequential(
                 nn.Linear(dim_in, dim_in),
                 nn.ReLU(inplace=True),
                 nn.Linear(dim_in, output_dim)
+                
             )
         else:
             raise NotImplementedError(
@@ -33,4 +41,7 @@ class ProjectionHead(nn.Module):
                 m.bias.data.fill_(0.01)
 
     def forward(self, x):
-        return self.hidden(x)
+        x = self.hidden(x)
+        if self.head == 'mlp':
+            x = F.normalize(x, p=2, dim=1)
+        return x

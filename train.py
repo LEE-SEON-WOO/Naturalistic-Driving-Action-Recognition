@@ -147,7 +147,8 @@ def train(args):
         spatial_transforms.Scale(args.sample_size),
         spatial_transforms.ToTensor(args.norm_value, 
                                     args.mode),
-        spatial_transforms.Normalize([0], [1])
+        spatial_transforms.Normalize(mean=[0.3682, 0.3682, 0.3680],  #Right
+                                        std= [0.2701, 0.2701, 0.2700])
     ])
     validation_data = DAC(root_path=args.root_path,
                         subset='validation',

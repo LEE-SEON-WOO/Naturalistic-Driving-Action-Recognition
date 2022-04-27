@@ -6,7 +6,7 @@ from pathlib import Path
 import argparse
 import ast
 
-def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth', 
+def parse_args(pretrain_path:str='./pretrained/r3d18_K_200ep.pth', 
                 n_classes:int=18,
                 n_pretrain_classes:int=1139,
                 n_input_channels:int=3,
@@ -37,9 +37,9 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
     parser.add_argument('--model_type', default='resnet', type=str, help='so far only resnet')
     parser.add_argument('--shortcut_type', default='B', type=str, help='Shortcut type of resnet (A | B)')
     parser.add_argument('--pre_train_model', default=True, type=ast.literal_eval, help='Whether use pre-trained model')
-    parser.add_argument('--n_train_batch_size', default=32, type=int, help='Batch Size for normal training data')
-    parser.add_argument('--a_train_batch_size', default=16, type=int, help='Batch Size for anormal training data')
-    parser.add_argument('--val_batch_size', default=32, type=int, help='Batch Size for validation data')
+    parser.add_argument('--n_train_batch_size', default=64, type=int, help='Batch Size for normal training data')
+    parser.add_argument('--a_train_batch_size', default=32, type=int, help='Batch Size for anormal training data')
+    parser.add_argument('--val_batch_size', default=64, type=int, help='Batch Size for validation data')
     parser.add_argument('--checkpoint_folder', default='./checkpoints/', type=str, help='folder to store checkpoints')
     parser.add_argument('--log_folder', default='./logs/', type=str, help='folder to store log files')
     parser.add_argument('--log_resume', default=False, type=ast.literal_eval, help='True|False: a flag controlling whether to create a new log file')
@@ -126,14 +126,14 @@ def parse_args(pretrain_path:str='../pretrained/r3d18_K_200ep.pth',
     #Related Model(Hyperparameter)
     parser.add_argument('--view', default='Right', type=str, help='Dashboard | Rear | Right')
     # optimization
-    parser.add_argument('--learning_rate', type=float, default=0.2, help='learning rate') #0.001 ->0.2
-    parser.add_argument('--lr_decay_epochs', type=str, default='150,200,250',  
+    parser.add_argument('--learning_rate', type=float, default=0.1, help='learning rate') #0.001 ->0.2
+    parser.add_argument('--lr_decay_epochs', type=str, default='150,200,250,300,350,400,450,500,550,600',  
                         help='where to decay lr, can be a list')
     #parser.add_argument('--learning_rate', default=0.001, type=float, help='Initial learning rate (divided by 10 while training by lr scheduler)')
     parser.add_argument('--momentum', default=0.9, type=float, help='Momentum')
     parser.add_argument('--dampening', default=0.0, type=float, help='dampening of SGD')
     parser.add_argument('--weight_decay', default=1e-4, type=float, help='Weight Decay')
-    parser.add_argument('--epochs', default=250, type=int, help='Number of total epochs to run')
+    parser.add_argument('--epochs', default=600, type=int, help='Number of total epochs to run')
     parser.add_argument('--norm_value', default=255, type=int,
                         help='If 1, range of inputs is [0-255]. If 255, range of inputs is [0-1].')
     parser.add_argument('--cal_vec_batch_size', default=64, type=int,
