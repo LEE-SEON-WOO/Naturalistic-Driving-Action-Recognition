@@ -46,6 +46,7 @@ class ToTensor(object):
     def __init__(self, norm_value=255, t_type='train'):
         self.norm_value = norm_value
         self.t_type = t_type
+        self.resize = iaa.Resize({"height": 224, "width": 224})
     def __call__(self, pic):
         """
         Args:
@@ -75,13 +76,22 @@ class ToTensor(object):
             img = torch.from_numpy(np.array(pic, np.int16, copy=False))
         else:
             
+            
             if self.t_type == 'train':
+                
                 seq = iaa.Sequential([
-                    iaa.Fliplr(p=0.5),
+                    iaa.Sometimes(0.7,iaa.CenterCropToAspectRatio(aspect_ratio=random.uniform(0.5, 2))),
+                    self.resize,
+                    iaa.Sometimes(0.5, iaa.Fliplr(p=0.5)),
+                    iaa.Sometimes(0.5, iaa.PiecewiseAffine(scale=(0.01, 0.05), absolute_scale=False)),
+                    iaa.Sometimes(0.2, iaa.Grayscale(alpha=0.2)),
+                    iaa.GaussianBlur(),
                     iaa.Rotate((-5, 5))
                 ]) # !
+                
                 img = torch.tensor(seq(image=np.array(pic)))
             else:
+                img = self.resize(img)
                 img = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
             
         # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK

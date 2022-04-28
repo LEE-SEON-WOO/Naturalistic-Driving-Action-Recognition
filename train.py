@@ -97,10 +97,10 @@ def train(args):
     
     
     spatial_transform = spatial_transforms.Compose([
-            spatial_transforms.Scale(args.sample_size),
+            #spatial_transforms.Scale(args.sample_size),
             spatial_transforms.ToTensor(args.norm_value, args.mode),
-            spatial_transforms.Normalize(mean=[0.3685, 0.3685, 0.3683],  #Right
-                                        std=[0.2700, 0.2700, 0.2699])])
+            spatial_transforms.Normalize(mean=[0.3664, 0.3665, 0.3662],  #Right
+                                        std=[0.2743,0.2743,0.2742])])
     print("=================================Loading Driving Training Data!=================================")
     training_anormal_data = DAC(root_path=args.root_path,
                                 subset='train',
@@ -144,11 +144,11 @@ def train(args):
 
     print("========================================Loading Validation Data========================================")
     val_spatial_transform = spatial_transforms.Compose([
-        spatial_transforms.Scale(args.sample_size),
+        # spatial_transforms.Scale(args.sample_size),
         spatial_transforms.ToTensor(args.norm_value, 
                                     args.mode),
-        spatial_transforms.Normalize(mean=[0.3682, 0.3682, 0.3680],  #Right
-                                        std= [0.2701, 0.2701, 0.2700])
+        spatial_transforms.Normalize(mean= [0.3679, 0.3679, 0.3677],  #Right
+                                        std= [0.2757,0.2757,0.2756])
     ])
     validation_data = DAC(root_path=args.root_path,
                         subset='validation',
